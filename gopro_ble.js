@@ -1,4 +1,3 @@
-
 // --- Constantes basées sur la documentation Open GoPro ---
 // UUID du Service principal GoPro BLE (Control & Query)
 const GOPRO_SERVICE_UUID = "0000fea6-0000-1000-8000-00805f9b34fb"; // FEA6
@@ -3018,3 +3017,43 @@ resetConnectionState();
 
 
 }); // Fin de DOMContentLoaded
+
+
+// Dark Mode Toggle Script
+// Placé ici pour s'assurer que le DOM est chargé car gopro_ble.js est à la fin du body.
+// Si gopro_ble.js était dans le <head>, il faudrait wrapper ceci dans DOMContentLoaded.
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const htmlElement = document.documentElement;
+
+// Function to apply theme and update button text
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        htmlElement.classList.add('dark');
+        if (darkModeToggle) darkModeToggle.textContent = 'Mode Clair'; 
+    } else {
+        htmlElement.classList.remove('dark');
+        if (darkModeToggle) darkModeToggle.textContent = 'Mode Sombre';
+    }
+}
+
+// Check localStorage and apply initial theme
+const storedTheme = localStorage.getItem('theme');
+if (storedTheme) {
+    applyTheme(storedTheme);
+} else {
+    // Default to light theme if nothing is stored or system preference isn't checked
+    applyTheme('light'); 
+}
+
+// Event listener for the toggle button
+if (darkModeToggle) {
+    darkModeToggle.addEventListener('click', () => {
+        if (htmlElement.classList.contains('dark')) {
+            applyTheme('light');
+            localStorage.setItem('theme', 'light');
+        } else {
+            applyTheme('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+}
