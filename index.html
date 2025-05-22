@@ -105,7 +105,12 @@
              <div id="hilight-feedback" class="mt-2 text-sm text-blue-600 dark:text-blue-400 h-5"></div>
             
             <section id="presets-section" class="my-6 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm hidden">
-              <h3 class="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200">Presets Disponibles</h3>
+              <div class="flex justify-between items-center mb-3">
+                <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200">Presets Disponibles</h3>
+                <button id="toggle-presets-button" type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
+                    Masquer
+                </button>
+              </div>
               <div id="presets-container" class="mb-4">
                   <p class="text-gray-500 dark:text-gray-400 italic">Chargement des presets depuis la caméra...</p>
               </div>
@@ -114,7 +119,12 @@
             </section>
 
             <section id="settings-section" class="my-6 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm">
-              <h3 class="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200">Paramètres</h3>
+              <div class="flex justify-between items-center mb-3">
+                <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200">Paramètres</h3>
+                <button id="toggle-settings-button" type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
+                    Masquer
+                </button>
+              </div>
               <div id="settings-container" class="space-y-4">
                   <div id="setting-item-2" class="setting-item flex items-center space-x-2 hidden">
                     <label for="setting-2" class="w-28 text-gray-900 dark:text-gray-100">Résolution Vidéo:</label>
