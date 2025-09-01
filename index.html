@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contrôle GoPro BLE</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = { 
+        darkMode: 'class',
+        theme: {
+          extend: {
+            // Future theme extensions can go here
+          }
+        }
+      }
+    </script>
     <style>
         body {
             font-family: sans-serif;
@@ -61,7 +71,7 @@
             </div>
         </div>
 
-        <!-- Autres sections (Contrôles, Statuts, etc.) - à venir -->
+        <!-- Autres sections (Contrôles, Statuts, etc.) -->
         <div id="controls-section" class="hidden mt-6 p-4 border dark:border-gray-600 rounded bg-gray-50 dark:bg-slate-800">
             <h2 class="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Contrôles Principaux</h2>
 
@@ -105,7 +115,13 @@
              <div id="hilight-feedback" class="mt-2 text-sm text-blue-600 dark:text-blue-400 h-5"></div>
             
             <section id="presets-section" class="my-6 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm hidden">
-              <h3 class="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200">Presets Disponibles</h3>
+              <!-- DIV et BOUTON RÉINTÉGRÉS DE index.html (original) -->
+              <div class="flex justify-between items-center mb-3">
+                <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200">Presets Disponibles</h3>
+                <button id="toggle-presets-button" type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
+                    Masquer
+                </button>
+              </div>
               <div id="presets-container" class="mb-4">
                   <p class="text-gray-500 dark:text-gray-400 italic">Chargement des presets depuis la caméra...</p>
               </div>
@@ -114,7 +130,13 @@
             </section>
 
             <section id="settings-section" class="my-6 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm">
-              <h3 class="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200">Paramètres</h3>
+              <!-- DIV et BOUTON RÉINTÉGRÉS DE index.html (original) -->
+              <div class="flex justify-between items-center mb-3">
+                <h3 class="text-xl font-bold text-gray-700 dark:text-gray-200">Paramètres</h3>
+                <button id="toggle-settings-button" type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
+                    Masquer
+                </button>
+              </div>
               <div id="settings-container" class="space-y-4">
                   <div id="setting-item-2" class="setting-item flex items-center space-x-2 hidden">
                     <label for="setting-2" class="w-28 text-gray-900 dark:text-gray-100">Résolution Vidéo:</label>
@@ -188,31 +210,32 @@
                     <span id="setting-111-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
                 </div>
             </section>
-        </div>
 
-        <!-- Section Statuts -->
-        <div id="status-section" class="hidden mt-6 p-4 border dark:border-gray-600 rounded bg-gray-50 dark:bg-slate-800">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Statuts Caméra</h2>
-                <button id="toggle-status-button" type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
-                    Masquer
-                </button>
+            <!-- Section Statuts  -->
+            <div id="status-section" class="my-6 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm"> <!-- CHANGÉ EN my-6 -->
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Statuts Caméra</h2>
+                    <button id="toggle-status-button" type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
+                        Masquer
+                    </button>
+                </div>
+                <div id="status-grid" class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div class="text-gray-900 dark:text-gray-100">Batterie:</div><div id="status-battery" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                    <div class="text-gray-900 dark:text-gray-100">Enregistrement:</div><div id="status-encoding" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                    <div class="text-gray-900 dark:text-gray-100">Espace Restant:</div><div id="status-sd-remaining" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                    <div class="text-gray-900 dark:text-gray-100">Capacité SD:</div><div id="status-sd-capacity" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                    <div class="text-gray-900 dark:text-gray-100">Temps Vidéo Restant:</div><div id="status-video-remaining" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                    <div class="text-gray-900 dark:text-gray-100">Température:</div><div id="status-temp" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                    <div class="text-gray-900 dark:text-gray-100">État Système:</div><div id="status-busy" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                    <div class="text-gray-900 dark:text-gray-100">Preset Actif:</div><div id="status-preset" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                </div>
             </div>
-            <div id="status-grid" class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div class="text-gray-900 dark:text-gray-100">Batterie:</div><div id="status-battery" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-                <div class="text-gray-900 dark:text-gray-100">Enregistrement:</div><div id="status-encoding" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-                <div class="text-gray-900 dark:text-gray-100">Espace Restant:</div><div id="status-sd-remaining" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-                <div class="text-gray-900 dark:text-gray-100">Capacité SD:</div><div id="status-sd-capacity" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-                <div class="text-gray-900 dark:text-gray-100">Temps Vidéo Restant:</div><div id="status-video-remaining" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-                <div class="text-gray-900 dark:text-gray-100">Température:</div><div id="status-temp" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-                <div class="text-gray-900 dark:text-gray-100">État Système:</div><div id="status-busy" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-                <div class="text-gray-900 dark:text-gray-100">Preset Actif:</div><div id="status-preset" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
-            </div>
-        </div>
+        </div> <!-- Fin de controls-section -->
 
-    </div>
+    </div> <!-- Fin de container -->
 
     <script src="./protobuf.min.js"></script>
-    <script src="./gopro_ble.js"></script>
+    <!-- Assurez-vous que le fichier JS utilisé est celui qui contient la logique pour les boutons toggle -->
+    <script src="./gopro_ble.js"></script> <!-- ou gopro_ble (1).js si c'est le même -->
 </body>
 </html>

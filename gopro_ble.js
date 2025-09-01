@@ -940,6 +940,16 @@ function processPresetData(presetGroups, actionId) {
         });
     }
 
+    // Listener pour le bouton toggle des Settings
+    const toggleSettingsButton = document.getElementById('toggle-settings-button');
+    const settingsContainerElement = document.getElementById('settings-container'); // Specific element for settings
+    if (toggleSettingsButton && settingsContainerElement) {
+        toggleSettingsButton.addEventListener('click', () => {
+            settingsContainerElement.classList.toggle('hidden');
+            toggleSettingsButton.textContent = settingsContainerElement.classList.contains('hidden') ? 'Afficher' : 'Masquer';
+        });
+    }
+
     // Appeler la fonction UI qui utilisera MAINTENANT le cache
     updatePresetsUI(presetGroups);
 }
@@ -2956,6 +2966,16 @@ if (toggleStatusButton && statusGrid) {
         toggleStatusButton.textContent = statusGrid.classList.contains('hidden') ? 'Afficher' : 'Masquer';
     });
 }
+
+    // Listener pour le bouton toggle des Presets
+    const togglePresetsButton = document.getElementById('toggle-presets-button');
+    // presetsContainer est déjà récupéré et assigné globalement dans DOMContentLoaded
+    if (togglePresetsButton && presetsContainer) {
+        togglePresetsButton.addEventListener('click', () => {
+            presetsContainer.classList.toggle('hidden');
+            togglePresetsButton.textContent = presetsContainer.classList.contains('hidden') ? 'Afficher' : 'Masquer';
+        });
+    }
 
 // Listeners pour les paramètres résolution, ...
 if (settingResolutionSelect) {
