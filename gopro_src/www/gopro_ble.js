@@ -17,6 +17,8 @@ const BluetoothBridge = {
     async requestDevice(options) {
         if (this.isAndroid) {
             await BluetoothLe.initialize();
+            // Nettoyage des anciens listeners pour éviter les doublons lors d'une reconnexion
+            try { await BluetoothLe.removeAllListeners(); } catch (e) { console.warn("[Bridge] Erreur nettoyage listeners:", e); }
             // Demander les permissions avant de scanner
             try {
                 // Utilisation des UUIDs complets pour plus de fiabilité sur Android
@@ -78,46 +80,84 @@ const BluetoothBridge = {
                                         });
                                     },
                                     addEventListener: (type, callback) => {
-                                        BluetoothLe.addListener('notification', (result) => {
-                                            const resId = result.deviceId ? result.deviceId.trim().toUpperCase() : "";
-                                            if (result.characteristic.toLowerCase() === charUuid.toLowerCase() && (resId === "" || resId === trimmedId)) {
-                                                callback({ target: { value: new DataView(result.value.buffer) } });
+                                        // Le plugin natif notifie sur un nom d'événement composite
+                                        const eventName = `notification|${trimmedId}|${uuid}|${charUuid}`;
+                                        if (VERBOSE_LOGGING) console.log(`[Bridge] Enregistrement listener sur: ${eventName}`);
+
+                                        // S'assurer qu'on n'a pas déjà un listener pour cet événement précis
+                                        BluetoothLe.addListener(eventName, (result) => {
+                                            if (VERBOSE_LOGGING) console.log(`[Bridge] Notification reçue sur ${charUuid}:`, result.value);
+
+                                            let buffer;
+                                            if (typeof result.value === 'string') {
+                                                // Conversion Hex -> ArrayBuffer si c'est une string
+                                                const bytes = new Uint8Array(result.value.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                                                buffer = bytes.buffer;
+                                            } else if (result.value instanceof ArrayBuffer) {
+                                                buffer = result.value;
+                                            } else if (ArrayBuffer.isView(result.value)) {
+                                                buffer = result.value.buffer;
+                                            } else {
+                                                // Cas objet {0:x, 1:y}
+                                                const bytes = new Uint8Array(Object.values(result.value));
+                                                buffer = bytes.buffer;
                                             }
+
+                                            callback({ target: { uuid: charUuid, value: new DataView(buffer) } });
                                         });
                                     },
                                     writeValueWithoutResponse: async (value) => {
-                                        if (VERBOSE_LOGGING) console.log(`[Bridge] WriteNoResp sur ${charUuid} (ID: ${trimmedId})`);
-                                        const dv = (value instanceof DataView) ? value : new DataView(value.buffer || value);
                                         try {
+                                            let uint8;
+                                            if (ArrayBuffer.isView(value)) uint8 = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+                                            else if (value instanceof ArrayBuffer) uint8 = new Uint8Array(value);
+                                            else uint8 = new Uint8Array(value);
+
+                                            // Conversion en Hexadécimal (format attendu par le plugin quand on passe une string)
+                                            const hexString = Array.from(uint8).map(b => b.toString(16).padStart(2, '0')).join('');
+
+                                            if (VERBOSE_LOGGING) {
+                                                console.log(`[Bridge] WriteNoResp sur ${charUuid} (${uint8.length} octets): ${hexString}`);
+                                            }
+
                                             await BluetoothLe.writeWithoutResponse({
                                                 deviceId: trimmedId,
                                                 service: uuid,
                                                 characteristic: charUuid,
-                                                value: dv
+                                                value: hexString
                                             });
                                         } catch (e) {
-                                            if (e.message.includes("Not connected")) {
-                                                console.warn("[Bridge] Retry WriteNoResp après échec session...");
-                                                await new Promise(r => setTimeout(r, 500));
-                                                await BluetoothLe.writeWithoutResponse({ deviceId: trimmedId, service: uuid, characteristic: charUuid, value: dv });
+                                            if (e.message.includes("Not connected") || e.message.includes("disconnected")) {
+                                                console.warn("[Bridge] Retry WriteNoResp...");
+                                                await new Promise(r => setTimeout(r, 600));
+                                                return this.writeValueWithoutResponse(value);
                                             } else throw e;
                                         }
                                     },
                                     writeValueWithResponse: async (value) => {
-                                        if (VERBOSE_LOGGING) console.log(`[Bridge] WriteWithResp sur ${charUuid} (ID: ${trimmedId})`);
-                                        const dv = (value instanceof DataView) ? value : new DataView(value.buffer || value);
                                         try {
+                                            let uint8;
+                                            if (ArrayBuffer.isView(value)) uint8 = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+                                            else if (value instanceof ArrayBuffer) uint8 = new Uint8Array(value);
+                                            else uint8 = new Uint8Array(value);
+
+                                            const hexString = Array.from(uint8).map(b => b.toString(16).padStart(2, '0')).join('');
+
+                                            if (VERBOSE_LOGGING) {
+                                                console.log(`[Bridge] WriteWithResp sur ${charUuid} (${uint8.length} octets): ${hexString}`);
+                                            }
+
                                             await BluetoothLe.write({
                                                 deviceId: trimmedId,
                                                 service: uuid,
                                                 characteristic: charUuid,
-                                                value: dv
+                                                value: hexString
                                             });
                                         } catch (e) {
-                                            if (e.message.includes("Not connected")) {
-                                                console.warn("[Bridge] Retry WriteWithResp après échec session...");
-                                                await new Promise(r => setTimeout(r, 500));
-                                                await BluetoothLe.write({ deviceId: trimmedId, service: uuid, characteristic: charUuid, value: dv });
+                                            if (e.message.includes("Not connected") || e.message.includes("disconnected")) {
+                                                console.warn("[Bridge] Retry WriteWithResp...");
+                                                await new Promise(r => setTimeout(r, 800));
+                                                return this.writeValueWithResponse(value);
                                             } else throw e;
                                         }
                                     }
@@ -132,14 +172,14 @@ const BluetoothBridge = {
                     name: device.name,
                     gatt: gattMock,
                     addEventListener: (type, callback) => {
-                        // Supporter à la fois le nom standard et le nom Capacitor
                         if (type === 'gattserverdisconnected' || type === 'disconnected') {
-                            BluetoothLe.addListener('disconnected', (result) => {
-                                if (result.deviceId.trim() === trimmedId) {
-                                    console.log("[Bridge] Event Déconnexion native reçu pour", trimmedId);
-                                    gattMock.connected = false;
-                                    callback({ target: deviceWrapper });
-                                }
+                            const eventName = `disconnected|${trimmedId}`;
+                            if (VERBOSE_LOGGING) console.log(`[Bridge] Enregistrement listener déconnexion sur: ${eventName}`);
+
+                            BluetoothLe.addListener(eventName, (result) => {
+                                console.log("[Bridge] Event Déconnexion reçu pour", trimmedId);
+                                gattMock.connected = false;
+                                callback({ target: deviceWrapper });
                             });
                         }
                     }
