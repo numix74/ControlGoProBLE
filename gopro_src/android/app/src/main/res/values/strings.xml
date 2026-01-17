@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ControlGoProBLE</string>
+    <string name="title_activity_main">ControlGoProBLE</string>
+    <string name="package_name">com.numix74.controlgoproble</string>
+    <string name="custom_url_scheme">com.numix74.controlgoproble</string>
+</resources>

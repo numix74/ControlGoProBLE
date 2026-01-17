@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle GoPro BLE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        .connection-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .dot-red { background-color: #ef4444; } /* red-500 */
+        .dot-yellow { background-color: #f59e0b; } /* amber-500 */
+        .dot-green { background-color: #22c55e; } /* green-500 */
+
+        /* Dark mode specific styles for preset buttons if needed, though Tailwind classes are preferred */
+        .dark .preset-button.active-preset {
+            background-color: #3b82f6; /* bg-blue-500 */
+            color: white;
+            border-color: #1d4ed8; /* border-blue-700 */
+        }
+        .dark .preset-button:not(.active-preset) {
+            background-color: #4b5563; /* bg-gray-600 */
+            color: #e5e7eb; /* text-gray-200 */
+        }
+        .dark .preset-button:not(.active-preset):hover {
+            background-color: #6b7280; /* bg-gray-500 */
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 p-4">
+    <div class="container mx-auto max-w-2xl bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-700">
+        <h1 class="text-2xl font-bold mb-4 text-center text-gray-900 dark:text-gray-100">Contrôle GoPro via BLE</h1>
+        <button id="dark-mode-toggle" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 mb-4">Thème Sombre / Clair</button>
+
+        <!-- Section Connexion -->
+        <div class="mb-6 p-4 border dark:border-gray-600 rounded bg-gray-50 dark:bg-slate-800">
+            <h2 class="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Connexion</h2>
+            <div class="flex items-center justify-between">
+                <div id="connection-status" class="flex items-center text-gray-900 dark:text-gray-100">
+                    <span class="connection-dot dot-red"></span>
+                    <span>Déconnecté</span>
+                </div>
+                <button id="connect-button" type="button" class="bg-blue-500 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Connecter
+                </button>
+            </div>
+            <div id="device-info" class="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                <!-- Les infos de la caméra apparaîtront ici -->
+            </div>
+             <div id="error-message" class="mt-2 text-sm text-red-600 dark:text-red-400">
+                <!-- Les messages d'erreur apparaîtront ici -->
+            </div>
+        </div>
+
+        <!-- Autres sections (Contrôles, Statuts, etc.) - à venir -->
+        <div id="controls-section" class="hidden mt-6 p-4 border dark:border-gray-600 rounded bg-gray-50 dark:bg-slate-800">
+            <h2 class="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Contrôles Principaux</h2>
+
+            <!-- Activation Timer -->
+            <div class="mb-4 pb-4 border-b dark:border-gray-600">
+                <div class="flex items-center space-x-3">
+                    <button id="timer-toggle-button" type="button" role="switch" aria-checked="false"
+                            class="bg-gray-200 dark:bg-gray-600 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent dark:border-gray-500 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                            aria-labelledby="timer-label">
+                        <span class="sr-only">Activer Enregistrement Temporisé</span>
+                        <span aria-hidden="true"
+                              id="timer-toggle-handle"
+                              class="translate-x-0 pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-gray-300 shadow ring-0 transition duration-200 ease-in-out">
+                        </span>
+                    </button>
+                    <span id="timer-label" class="text-sm font-medium text-gray-900 dark:text-gray-100">Enregistrement Temporisé</span>
+                </div>
+                <div class="flex items-center space-x-2 mt-2 pl-7">
+                    <label for="timed-duration" class="text-sm text-gray-900 dark:text-gray-100">Durée (secondes):</label>
+                    <input type="number" id="timed-duration" value="30" min="1" class="w-20 border dark:border-gray-600 rounded px-2 py-1 text-sm text-gray-900 dark:text-white dark:bg-gray-700 disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-gray-600" disabled>
+                </div>
+             </div>
+
+            <!-- Boutons Principaux -->
+            <div class="flex space-x-4">
+                <button id="start-record-button" type="button" class="bg-red-500 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px] text-center">
+                    Démarrer Enreg.
+                </button>
+                <button id="stop-record-button" type="button" class="bg-gray-500 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">
+                    Arrêter Enreg.
+                </button>
+             </div>
+              <div id="shutter-feedback" class="mt-2 text-sm text-blue-600 dark:text-blue-400 h-5"></div>
+            
+            <!-- Bouton Hilight -->
+            <div class="flex space-x-4 mt-4">
+                <button id="hilight-button" type="button" class="bg-yellow-500 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Hilight ✨
+                </button>
+             </div>
+             <div id="hilight-feedback" class="mt-2 text-sm text-blue-600 dark:text-blue-400 h-5"></div>
+            
+            <section id="presets-section" class="my-6 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm hidden">
+              <h3 class="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200">Presets Disponibles</h3>
+              <div id="presets-container" class="mb-4">
+                  <p class="text-gray-500 dark:text-gray-400 italic">Chargement des presets depuis la caméra...</p>
+              </div>
+              <div id="presets-feedback" class="mt-2 text-sm text-blue-600 dark:text-blue-400 h-5">
+              </div>
+            </section>
+
+            <section id="settings-section" class="my-6 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-800 shadow-sm">
+              <h3 class="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200">Paramètres</h3>
+              <div id="settings-container" class="space-y-4">
+                  <div id="setting-item-2" class="setting-item flex items-center space-x-2 hidden">
+                    <label for="setting-2" class="w-28 text-gray-900 dark:text-gray-100">Résolution Vidéo:</label>
+                    <select id="setting-2" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                        <option value="">Chargement...</option>
+                    </select>
+                    <span id="setting-2-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+
+                <div id="setting-item-3" class="setting-item flex items-center space-x-2 hidden">
+                  <label for="setting-3" class="w-28 text-gray-900 dark:text-gray-100">Images/sec (FPS):</label>
+                  <select id="setting-3" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                      <option value="">Chargement...</option>
+                  </select>
+                  <span id="setting-3-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+
+                <div id="setting-item-121" class="setting-item flex items-center space-x-2 hidden">
+                  <label for="setting-121" class="w-28 text-gray-900 dark:text-gray-100">Objectif Vidéo:</label>
+                  <select id="setting-121" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                      <option value="">Chargement...</option>
+                  </select>
+                  <span id="setting-121-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+
+                <div id="setting-item-83" class="setting-item flex items-center space-x-2 hidden">
+                  <label for="setting-83" class="w-28 text-gray-900 dark:text-gray-100">GPS:</label>
+                  <select id="setting-83" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                      <option value="">Chargement...</option>
+                  </select>
+                  <span id="setting-83-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+
+                <div id="setting-item-135" class="setting-item flex items-center space-x-2 hidden">
+                  <label for="setting-135" class="w-28 text-gray-900 dark:text-gray-100">Hypersmooth:</label>
+                  <select id="setting-135" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                      <option value="">Chargement...</option>
+                  </select>
+                  <span id="setting-135-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+
+                <div id="setting-item-30" class="setting-item flex items-center space-x-2 hidden">
+                    <label for="setting-30" class="w-28 text-gray-900 dark:text-gray-100">Time-lapse photo:</label>
+                    <select id="setting-30" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                        <option value="">Chargement...</option>
+                    </select>
+                    <span id="setting-30-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                  </div>
+
+                <div id="setting-item-5" class="setting-item flex items-center space-x-2 hidden">
+                    <label for="setting-5" class="w-28 text-gray-900 dark:text-gray-100">Intervalle Time-lapse :</label>
+                    <select id="setting-5" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                        <option value="">Chargement...</option>
+                    </select>
+                    <span id="setting-5-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+
+                <div id="setting-item-32" class="setting-item flex items-center space-x-2 hidden">
+                    <label for="setting-32" class="w-28 text-gray-900 dark:text-gray-100">Night-lapse:</label>
+                    <select id="setting-32" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                        <option value="">Chargement...</option>
+                    </select>
+                    <span id="setting-32-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+
+                <div id="setting-item-111" class="setting-item flex items-center space-x-2 hidden">
+                    <label for="setting-111" class="w-28 text-gray-900 dark:text-gray-100">Vitesse :</label>
+                    <select id="setting-111" class="flex-grow border dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white dark:bg-gray-700" disabled>
+                        <option value="">Chargement...</option>
+                    </select>
+                    <span id="setting-111-feedback" class="feedback text-sm text-blue-600 dark:text-blue-400 w-20 text-right h-5"></span>
+                </div>
+            </section>
+        </div>
+
+        <!-- Section Statuts -->
+        <div id="status-section" class="hidden mt-6 p-4 border dark:border-gray-600 rounded bg-gray-50 dark:bg-slate-800">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Statuts Caméra</h2>
+                <button id="toggle-status-button" type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
+                    Masquer
+                </button>
+            </div>
+            <div id="status-grid" class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div class="text-gray-900 dark:text-gray-100">Batterie:</div><div id="status-battery" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                <div class="text-gray-900 dark:text-gray-100">Enregistrement:</div><div id="status-encoding" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                <div class="text-gray-900 dark:text-gray-100">Espace Restant:</div><div id="status-sd-remaining" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                <div class="text-gray-900 dark:text-gray-100">Capacité SD:</div><div id="status-sd-capacity" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                <div class="text-gray-900 dark:text-gray-100">Temps Vidéo Restant:</div><div id="status-video-remaining" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                <div class="text-gray-900 dark:text-gray-100">Température:</div><div id="status-temp" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                <div class="text-gray-900 dark:text-gray-100">État Système:</div><div id="status-busy" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+                <div class="text-gray-900 dark:text-gray-100">Preset Actif:</div><div id="status-preset" class="font-medium text-gray-700 dark:text-gray-300">N/A</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="./protobuf.min.js"></script>
+    <script src="./gopro_ble.js"></script>
+    <!-- Scripts Capacitor -->
+    <script src="capacitor.js"></script>
+</body>
+</html>
