@@ -617,12 +617,8 @@ let commandResponseCharacteristic = null;
 let settingsCharacteristic = null; // <-- Ajouter
 let settingsResponseCharacteristic = null;
 let isCameraReady = false;
-let incomingMessage = {
-    buffer: new Uint8Array(0), // Pour accumuler les données
-    expectedLength: 0,         // Longueur totale attendue du message
-    receivedLength: 0,         // Longueur actuellement reçue
-    isAssembling: false        // Indicateur si un message est en cours d'assemblage
-};
+// Gestion de l'assemblage des messages multi-paquets (par caractéristique)
+let ongoingAssemblies = {};
 let queryCharacteristic = null;
 let queryResponseCharacteristic = null;
 let initialStatusRequested = false; // Drapeau pour savoir si on a demandé l'état initial
@@ -2054,114 +2050,100 @@ async function sendCommand(characteristic, commandBuffers) {
 // Gère les notifications reçues (réponses aux commandes/requêtes)
 function handleNotifications(event) {
     const characteristic = event.target;
+    const sourceUuid = characteristic.uuid;
     const packetDataView = characteristic.value; // C'est un DataView
     const packetBytes = new Uint8Array(packetDataView.buffer);
-    if (VERBOSE_LOGGING) console.log(`[HandleNotify] Notification reçue sur ${characteristic.uuid} (${packetBytes.length} bytes): ${Array.from(packetBytes).map(b => b.toString(16).padStart(2, '0')).join(':')}`);
 
+    if (VERBOSE_LOGGING) console.log(`[HandleNotify] Notification reçue sur ${sourceUuid} (${packetBytes.length} bytes): ${Array.from(packetBytes).map(b => b.toString(16).padStart(2, '0')).join(':')}`);
     if (packetBytes.length === 0) return;
+
+    // Initialiser ou récupérer l'état d'assemblage pour CETTE caractéristique
+    if (!ongoingAssemblies[sourceUuid]) {
+        ongoingAssemblies[sourceUuid] = {
+            isAssembling: false,
+            buffer: new Uint8Array(0),
+            expectedLength: 0,
+            receivedLength: 0
+        };
+    }
+    const msgState = ongoingAssemblies[sourceUuid];
 
     const firstByte = packetBytes[0];
     const isContinuation = (firstByte & 0b10000000) !== 0; // Bit 7 = 1
 
     if (!isContinuation) {
         // --- C'est un PAQUET DE DÉPART ---
-        if (incomingMessage.isAssembling) {
-            console.warn("Nouveau paquet de départ reçu alors qu'un message était en cours d'assemblage. Abandon de l'ancien.");
-            // Réinitialiser l'état d'assemblage
+        if (msgState.isAssembling) {
+            console.warn(`[${sourceUuid}] Nouveau paquet de départ reçu alors qu'un message était en cours d'assemblage. Abandon de l'ancien.`);
         }
-        incomingMessage.isAssembling = true;
-        incomingMessage.buffer = new Uint8Array(0); // Vider le buffer précédent
-        incomingMessage.receivedLength = 0;
+        msgState.isAssembling = true;
+        msgState.buffer = new Uint8Array(0); // Vider le buffer précédent
+        msgState.receivedLength = 0;
 
         let headerLength = 0;
-        let payloadPart = null;
         // Isoler les bits 6 et 5 pour le type (00, 01, 10)
         const headerType = (firstByte & 0b01100000) >> 5;
 
         if (headerType === 0b00) { // Type 00: General 5-bit (000xxxxx)
-            incomingMessage.expectedLength = firstByte & 0b00011111;
+            msgState.expectedLength = firstByte & 0b00011111;
             headerLength = 1;
-            // if (VERBOSE_LOGGING) console.log(`  Paquet Départ (General 5-bit). Longueur attendue: ${incomingMessage.expectedLength}`);
         } else if (headerType === 0b01 && packetBytes.length >= 2) { // Type 01: Extended 13-bit (010xxxxx LLLLLLLL)
-            incomingMessage.expectedLength = ((firstByte & 0b00011111) << 8) | packetBytes[1];
+            msgState.expectedLength = ((firstByte & 0b00011111) << 8) | packetBytes[1];
             headerLength = 2;
-            // if (VERBOSE_LOGGING) console.log(`  Paquet Départ (Extended 13-bit). Longueur attendue: ${incomingMessage.expectedLength}`);
         } else if (headerType === 0b10 && packetBytes.length >= 3) { // Type 10: Extended 16-bit (100xxxxx LLLLLLLL LLLLLLLL)
-            incomingMessage.expectedLength = (packetBytes[1] << 8) | packetBytes[2];
+            msgState.expectedLength = (packetBytes[1] << 8) | packetBytes[2];
             headerLength = 3;
-            // if (VERBOSE_LOGGING) console.log(`  Paquet Départ (Extended 16-bit). Longueur attendue: ${incomingMessage.expectedLength}`);
         } else {
-            console.error(`  En-tête paquet départ non reconnu/incomplet: Byte=${firstByte.toString(16)}, Type=${headerType.toString(2)}, Len=${packetBytes.length}`);
-            incomingMessage.isAssembling = false;
-            return; // Impossible de continuer
-        }
-
-        // Vérifier si la longueur attendue est valide (au moins > 0 si paquet non vide)
-        if (incomingMessage.expectedLength === 0 && packetBytes.length > headerLength) {
-            console.warn(`  Longueur attendue calculée à 0, mais paquet contient des données (${packetBytes.length - headerLength} bytes). Header: ${firstByte.toString(16)}`);
-            // Vous pourriez tenter de deviner la longueur ou ignorer le paquet. Ignorer est plus sûr.
-            // incomingMessage.isAssembling = false;
-            // return;
-            // Ou tenter de prendre tout le reste ?
-            incomingMessage.expectedLength = packetBytes.length - headerLength;
-            console.warn(`  Ajustement longueur attendue à ${incomingMessage.expectedLength}`);
-
-        } else if (incomingMessage.expectedLength > 50000) { // Limite arbitraire pour éviter allocations mémoire énormes
-            console.error(`  Longueur attendue irréaliste (${incomingMessage.expectedLength}). Header: ${firstByte.toString(16)}`);
-            incomingMessage.isAssembling = false;
+            console.error(`[${sourceUuid}] En-tête paquet départ non reconnu/incomplet: Byte=${firstByte.toString(16)}, Type=${headerType.toString(2)}`);
+            msgState.isAssembling = false;
             return;
         }
 
-        if (VERBOSE_LOGGING) console.log(`[HandleNotify] Paquet Départ - Type: ${headerType.toString(2)}, Longueur Attendue: ${incomingMessage.expectedLength}`); // <-- NOUVEAU LOG
+        // Vérification longueur
+        if (msgState.expectedLength === 0 && packetBytes.length > headerLength) {
+            msgState.expectedLength = packetBytes.length - headerLength;
+        } else if (msgState.expectedLength > 50000) {
+            console.error(`[${sourceUuid}] Longueur attendue irréaliste (${msgState.expectedLength})`);
+            msgState.isAssembling = false;
+            return;
+        }
 
-        // Extraction et stockage de la première partie du payload
-        payloadPart = packetBytes.slice(headerLength);
-        incomingMessage.buffer = new Uint8Array(payloadPart);
-        incomingMessage.receivedLength = payloadPart.length;
+        if (VERBOSE_LOGGING) console.log(`[${sourceUuid}] Paquet Départ - Type: ${headerType.toString(2)}, Longueur Attendue: ${msgState.expectedLength}`);
+
+        const payloadPart = packetBytes.slice(headerLength);
+        msgState.buffer = new Uint8Array(payloadPart);
+        msgState.receivedLength = payloadPart.length;
 
     } else {
         // --- C'est un PAQUET DE CONTINUATION ---
-        if (!incomingMessage.isAssembling) {
-            console.warn("Paquet de continuation reçu sans paquet de départ préalable. Ignoré.");
+        if (!msgState.isAssembling) {
+            console.warn(`[${sourceUuid}] Paquet de continuation reçu sans paquet de départ préalable. Ignoré.`);
             return;
         }
 
-        // L'en-tête de continuation est juste le premier octet (1RRRCCCC)
-        // const counter = firstByte & 0b00001111;
-        // if (VERBOSE_LOGGING) console.log(`  Paquet Continuation (Compteur: ${counter})`);
-        const payloadPart = packetBytes.slice(1); // Le reste est du payload
-        if (VERBOSE_LOGGING) console.log(`[HandleNotify] Paquet Continuation reçu (${payloadPart.length} bytes payload).`); // <-- NOUVEAU LOG
+        const payloadPart = packetBytes.slice(1);
+        if (VERBOSE_LOGGING) console.log(`[${sourceUuid}] Paquet Continuation reçu (${payloadPart.length} bytes payload).`);
 
-        // Concaténer le nouveau payload au buffer existant
-        const newBuffer = new Uint8Array(incomingMessage.buffer.length + payloadPart.length);
-        newBuffer.set(incomingMessage.buffer, 0);
-        newBuffer.set(payloadPart, incomingMessage.buffer.length);
-        incomingMessage.buffer = newBuffer;
-        incomingMessage.receivedLength += payloadPart.length;
+        const newBuffer = new Uint8Array(msgState.buffer.length + payloadPart.length);
+        newBuffer.set(msgState.buffer, 0);
+        newBuffer.set(payloadPart, msgState.buffer.length);
+        msgState.buffer = newBuffer;
+        msgState.receivedLength += payloadPart.length;
     }
 
-    if (VERBOSE_LOGGING) console.log(`[HandleNotify] Assemblage: ${incomingMessage.receivedLength} / ${incomingMessage.expectedLength} bytes.`); // <-- NOUVEAU LOG
+    if (VERBOSE_LOGGING) console.log(`[${sourceUuid}] Assemblage: ${msgState.receivedLength} / ${msgState.expectedLength} bytes.`);
 
     // --- Vérifier si le message est complet ---
-    if (incomingMessage.isAssembling && incomingMessage.receivedLength >= incomingMessage.expectedLength) {
-        const fullMessagePayload = incomingMessage.buffer.slice(0, incomingMessage.expectedLength); // S'assurer de ne pas dépasser
-        console.log(`[HandleNotify] Message complet (${fullMessagePayload.length} bytes). Source UUID: ${characteristic.uuid}`); // <-- NOUVEAU LOG
-        if (VERBOSE_LOGGING) console.log(`[HandleNotify]   Payload brut: ${Array.from(fullMessagePayload).map(b => b.toString(16).padStart(2, '0')).join(':')}`); // <-- NOUVEAU LOG
+    if (msgState.isAssembling && msgState.receivedLength >= msgState.expectedLength) {
+        const fullMessagePayload = msgState.buffer.slice(0, msgState.expectedLength);
+        console.log(`[HandleNotify] Message complet (${fullMessagePayload.length} bytes) sur ${sourceUuid}`);
 
-        // Réinitialiser l'état d'assemblage pour le prochain message
-        incomingMessage.isAssembling = false;
-        // incomingMessage.expectedLength = 0;
-        // incomingMessage.receivedLength = 0;
-        // NE PAS vider le buffer ici, il est passé à l'analyse
+        // Réinitialiser pour le prochain message
+        msgState.isAssembling = false;
 
-        // --- Analyser le message complet (Logique existante, mais avec fullMessagePayload) ---
-        if (fullMessagePayload.length === 0) {
-            if (VERBOSE_LOGGING) console.warn("Payload complet est vide après réassemblage.");
-            return;
-        }
+        if (fullMessagePayload.length === 0) return;
 
-        // Identifier le type de réponse basé sur l'UUID de la caractéristique source
-        const sourceUuid = event.target.uuid;
+        // Identifier le type de réponse basé sur l'UUID de la caractéristique source (déjà dans sourceUuid)
 
         try {
             // 1. Est-ce une réponse COMMANDE ou SETTING ?
@@ -2298,8 +2280,8 @@ function handleNotifications(event) {
         }
 
 
-    } else if (incomingMessage.isAssembling) {
-        // if (VERBOSE_LOGGING) console.log("  En attente de paquets de continuation...");
+    } else if (msgState.isAssembling) {
+        // En attente...
     }
 }
 
@@ -2902,6 +2884,7 @@ function resetConnectionState() {
     isTimerEnabled = false; // Désactiver le mode timer
     presetInfoCache = {}; // Vider le cache des presets
     availablePresets.groups = []; // Vider les groupes de presets
+    ongoingAssemblies = {}; // Réinitialiser les assemblages en cours
 
     // Références aux éléments UI pour masquer/afficher
     const controlsSection = document.getElementById('controls-section');
