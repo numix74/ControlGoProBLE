@@ -643,38 +643,10 @@ let errorMessageDiv = null;
 let controlsSection = null;
 let statusSection = null;
 let statusBatteryDiv = null;
+let statusBatteryChip = null;
+let statusSdChip = null;
+let statusTempChip = null;
 let statusEncodingDiv = null;
-// ... et ainsi de suite pour TOUS les éléments UI ...
-let settingResolutionSelect = null;
-let settingResolutionFeedback = null;
-let settingFpsSelect = null;
-let settingFpsFeedback = null;
-let settingLensSelect = null;
-let settingLensFeedback = null;
-let settingGpsSelect = null;
-let settingGpsFeedback = null;
-let settingHypersmoothSelect = null;
-let settingHypersmoothFeedback = null;
-
-// Ajouter les références aux DIVs parentes pour les masquer/afficher
-let settingItemResolutionDiv = null;
-let settingItemFpsDiv = null;
-let settingItemLensDiv = null;
-let settingItemGpsDiv = null;
-let settingItemHypersmoothDiv = null;
-let presetsContainer = null; // <-- AJOUTÉ
-let presetsSection = null;   // <-- AJOUTÉ
-let presetsFeedback = null;  // <-- AJOUTÉ
-let startRecordButton = null;
-let stopRecordButton = null;
-let shutterFeedbackDiv = null;
-let hilightButton = null;
-let hilightFeedbackDiv = null;
-let timerToggleButton = null;
-let timerToggleHandle = null;
-let timedDurationInput = null;
-let toggleStatusButton = null;
-let statusGrid = null;
 let statusSdRemainingDiv = null;
 let statusSdCapacityDiv = null;
 let statusVideoRemainingDiv = null;
@@ -769,28 +741,31 @@ function updateSingleStatusDisplay(statusId, value) {
 
     switch (statusId) {
         case STATUS_ID_BATTERY_PERCENT:
-            targetElement = statusBatteryDiv;
-            // Vérifier si le statut des barres existe et indique la charge
-            const batteryBarsStatus = currentSettings[STATUS_ID_BATTERY_BARS]; // Lire l'état des barres
-            if (batteryBarsStatus === 4) { // 4 = Charging
-                displayValue = `${value}% <span class="text-green-500">(Charge...)</span>`; // Ajouter indication
-            } else {
-                displayValue = `${value}%`; // Affichage normal
+            const batteryBarsStatus = currentSettings[STATUS_ID_BATTERY_BARS];
+            let batteryIcon = 'battery_horiz_075';
+            if (batteryBarsStatus === 4) batteryIcon = 'battery_charging_full';
+            else if (value < 20) batteryIcon = 'battery_low';
+
+            if (statusBatteryChip) {
+                statusBatteryChip.textContent = `${value}%`;
+                const iconSpan = statusBatteryChip.previousElementSibling;
+                if (iconSpan) iconSpan.textContent = batteryIcon;
+            }
+            if (statusBatteryDiv) {
+                displayValue = batteryBarsStatus === 4 ? `${value}% (Charge...)` : `${value}%`;
+                targetElement = statusBatteryDiv;
             }
             break;
-        case STATUS_ID_BATTERY_BARS:
-            // On met à jour l'état global, mais on ne change pas directement l'UI ici.
-            // L'UI principale de la batterie est mise à jour par STATUS_ID_BATTERY_PERCENT.
-            // On pourrait ajouter un log ou une petite icône séparée si besoin.
-            if (VERBOSE_LOGGING) console.log(`   Statut Barres Batterie reçu: ${value}`);
-            // Si on reçoit la notification de barres APRES celle du pourcentage,
-            // on pourrait forcer une mise à jour de l'affichage du pourcentage :
-            if (currentSettings.hasOwnProperty(STATUS_ID_BATTERY_PERCENT)) {
-                updateSingleStatusDisplay(STATUS_ID_BATTERY_PERCENT, currentSettings[STATUS_ID_BATTERY_PERCENT]);
-            }
-            return; // Ne pas essayer de mettre à jour targetElement/displayValue pour les barres elles-mêmes
-        case STATUS_ID_ENCODING: targetElement = statusEncodingDiv; displayValue = value === 1 ? '<span class="text-red-600 font-bold">Oui</span>' : 'Non'; break;
-        case STATUS_ID_SD_REMAINING: targetElement = statusSdRemainingDiv; displayValue = formatSize(Number(value)); break;
+        case STATUS_ID_ENCODING:
+            targetElement = statusEncodingDiv;
+            displayValue = value === 1 ? '<span class="text-md-error font-bold">ENREG.</span>' : 'Repos';
+            updateRecordingUI(value === 1);
+            break;
+        case STATUS_ID_SD_REMAINING:
+            if (statusSdChip) statusSdChip.textContent = formatSize(Number(value));
+            targetElement = statusSdRemainingDiv;
+            displayValue = formatSize(Number(value));
+            break;
         case STATUS_ID_SD_CAPACITY: targetElement = statusSdCapacityDiv; displayValue = formatSize(Number(value)); break;
         case STATUS_ID_VIDEO_REMAINING: targetElement = statusVideoRemainingDiv; displayValue = formatDuration(value); break;
         case STATUS_ID_COLD:
@@ -798,24 +773,23 @@ function updateSingleStatusDisplay(statusId, value) {
             targetElement = statusTempDiv;
             let isCold = (statusId === STATUS_ID_COLD && value === 1) || (currentSettings[STATUS_ID_COLD] === 1 && statusId !== STATUS_ID_COLD);
             let isHot = (statusId === STATUS_ID_OVERHEATING && value === 1) || (currentSettings[STATUS_ID_OVERHEATING] === 1 && statusId !== STATUS_ID_OVERHEATING);
-            if (isCold) displayValue = '<span class="text-blue-600">Froid</span>';
-            else if (isHot) displayValue = '<span class="text-red-600">Chaud</span>';
-            else displayValue = 'OK';
+            if (isCold) { displayValue = 'Froid'; if (statusTempChip) statusTempChip.textContent = 'Froid'; }
+            else if (isHot) { displayValue = 'Chaud'; if (statusTempChip) statusTempChip.textContent = 'Chaud'; }
+            else { displayValue = 'OK'; if (statusTempChip) statusTempChip.textContent = 'OK'; }
             break;
-        case STATUS_ID_BUSY: targetElement = statusBusyDiv; displayValue = value === 1 ? '<span class="text-yellow-600">Occupé</span>' : 'Prêt'; break;
+        case STATUS_ID_BUSY:
+            targetElement = statusBusyDiv;
+            displayValue = value === 1 ? '<span class="text-amber-600">Occupé</span>' : 'Prêt';
+            break;
         case STATUS_ID_PRESET_ACTIVE:
             targetElement = statusPresetDiv;
-            // displayValue = `ID ${value}`; 
-            // *** Logique modifiée : Utiliser le cache ***
-            const activePresetIdValue = value; // Renommer pour clarté
-            const cachedPresetInfo = presetInfoCache[activePresetIdValue]; // Chercher dans le cache
-            // Afficher le nom du cache s'il existe, sinon l'ID
-            displayValue = cachedPresetInfo ? `${cachedPresetInfo.name} (ID: ${activePresetIdValue})` : `ID ${activePresetIdValue}`;
-            // *** Fin Logique modifiée ***
+            const activePresetIdValue = value;
+            const cachedPresetInfo = presetInfoCache[activePresetIdValue];
+            displayValue = cachedPresetInfo ? cachedPresetInfo.name : `ID ${activePresetIdValue}`;
+            markActivePresetButton(); // Rafraîchir l'état visuel des boutons presets
             break;
         default:
-            // console.log(`Pas de mise à jour UI spécifique pour Status ID: ${statusId}`);
-            return; // Sortir si pas d'élément défini
+            return;
     }
     if (targetElement) {
         targetElement.innerHTML = displayValue;
@@ -993,18 +967,10 @@ function markActivePresetButton() {
     presetButtons.forEach(button => {
         const buttonPresetId = parseInt(button.dataset.presetId, 10);
         if (!isNaN(buttonPresetId) && buttonPresetId === activePresetId) {
-            if (!button.classList.contains('active-preset')) {
-                if (VERBOSE_LOGGING) console.log(`   -> Marquage du bouton pour ID ${buttonPresetId} comme actif.`);
-                button.classList.add('active-preset', 'bg-blue-500', 'text-white', 'border-blue-700');
-                button.classList.remove('bg-gray-200', 'hover:bg-gray-300');
-            }
+            button.classList.add('active-preset');
             foundActive = true;
         } else {
-            if (button.classList.contains('active-preset')) {
-                if (VERBOSE_LOGGING) console.log(`   -> Retrait du marquage actif du bouton pour ID ${buttonPresetId}.`);
-                button.classList.remove('active-preset', 'bg-blue-500', 'text-white', 'border-blue-700');
-                button.classList.add('bg-gray-200', 'hover:bg-gray-300');
-            }
+            button.classList.remove('active-preset');
         }
     });
 
@@ -1174,7 +1140,7 @@ function processPresetData(presetGroups, actionId) {
 }
 
 // --- Nouvelle fonction UI qui utilise le cache ---
-function updatePresetsUI(presetGroups) {
+function updatePresetsUI(availablePresets) {
     console.log("Mise à jour de l'UI des presets (incluant marquage actif)..."); // Log modifié
     const presetsContainer = document.getElementById('presets-container');
     const presetsSection = document.getElementById('presets-section'); // Assurez-vous que cet ID correspond à votre HTML
@@ -1190,64 +1156,38 @@ function updatePresetsUI(presetGroups) {
     const activePresetId = currentSettings[STATUS_ID_PRESET_ACTIVE];
     // console.log(`  [UpdatePresetsUI] Preset Actif (depuis currentSettings): ${activePresetId}`);
 
-    if (!presetGroups || presetGroups.length === 0) {
+    if (!availablePresets || !availablePresets.groups || availablePresets.groups.length === 0) {
         presetsContainer.textContent = "Aucun preset disponible.";
+        presetsSection.classList.add('hidden'); // Masquer s'il n'y a rien à montrer
         return;
-    } else {
-        presetGroups.forEach(group => {
-            // ... titre groupe ...
-            const presetList = document.createElement('div');
-            presetList.className = 'preset-group-list grid grid-cols-2 md:grid-cols-3 gap-2';
-            presetsContainer.appendChild(presetList);
+    }
 
+    if (availablePresets.groups && availablePresets.groups.length > 0) {
+        availablePresets.groups.forEach(group => {
             if (group.presetArray && group.presetArray.length > 0) {
                 presetsFound = true;
                 group.presetArray.forEach(preset => {
                     const presetButton = document.createElement('button');
-                    // *** Utiliser le cache pour obtenir le nom ***
                     const cachedInfo = presetInfoCache[preset.id];
-                    const presetName = cachedInfo ? cachedInfo.name : `ID ${preset.id}`; // Nom depuis cache ou ID
-                    const iconName = cachedInfo ? cachedInfo.iconName : null; // Récupérer aussi l'icône du cache
-
-                    // console.log(`  Preset ID: ${preset.id}`); // ID Brut
-                    // console.log(`    -> Info Cache: Name='${presetName}', Icon='${iconName}'`); // Ce qui est utilisé
+                    const presetName = cachedInfo ? cachedInfo.name : `ID ${preset.id}`;
 
                     presetButton.textContent = presetName;
-                    presetButton.className = 'preset-button bg-gray-200 text-sm p-2 rounded border hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed'; // Exemple classes
+                    presetButton.className = 'preset-button bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant text-xs font-medium py-3 px-4 rounded-full border border-transparent transition-all active:scale-95 disabled:opacity-40';
                     presetButton.dataset.presetId = preset.id;
 
-                    // *** Marquer comme actif (utilise currentSettings, pas currentStatusValues) ***
-                    // const activePresetId = currentSettings[STATUS_ID_PRESET_ACTIVE]; // Lire depuis settings mis à jour par statut 0x93
+                    const activePresetId = currentSettings[STATUS_ID_PRESET_ACTIVE];
                     if (activePresetId !== undefined && preset.id === activePresetId) {
-                        presetButton.classList.add('active-preset', 'bg-blue-500', 'text-white', 'border-blue-700');
-                        presetButton.classList.remove('bg-gray-200', 'hover:bg-gray-300');
-                    } else {
-                        presetButton.classList.remove('active-preset', 'bg-blue-500', 'text-white', 'border-blue-700');
-                        presetButton.classList.add('bg-gray-200', 'hover:bg-gray-300');
+                        presetButton.classList.add('active-preset');
                     }
 
-                    // Appliquer l'état busy directement ici aussi
-                    presetButton.disabled = isCameraBusy;
-                    presetButton.style.opacity = isCameraBusy ? 0.6 : 1;
-                    presetButton.style.cursor = isCameraBusy ? 'not-allowed' : '';
+                    presetButton.disabled = isCameraBusy || (currentEncodingStatus === 1);
 
                     presetButton.addEventListener('click', () => {
                         const idToLoad = parseInt(presetButton.dataset.presetId, 10);
-                        if (!isNaN(idToLoad)) {
-                            // console.log(`>>>> Click handler triggered for ID: ${idToLoad}`); // Log le clic
-                            loadPreset(idToLoad);
-                        }
+                        if (!isNaN(idToLoad)) loadPreset(idToLoad);
                     });
-                    presetList.appendChild(presetButton);
+                    presetsContainer.appendChild(presetButton);
                 });
-            } else {
-                const emptyGroupMsg = document.createElement('p');
-                emptyGroupMsg.textContent = "Aucun preset défini dans ce groupe."; // Message informatif
-                emptyGroupMsg.className = 'text-sm text-gray-500 italic col-span-full'; // Style exemple (Tailwind) pour le message
-                // Ajouter ce message à la 'presetList' (le div créé pour les boutons de ce groupe)
-                presetList.appendChild(emptyGroupMsg);
-                // Log pour indiquer qu'on a traité un groupe vide
-                if (VERBOSE_LOGGING) console.log(`   [UpdatePresetsUI] Le groupe ${group.id || 'inconnu'} est vide ou presetArray est manquant/vide.`);
             }
         });
     }
@@ -1849,36 +1789,22 @@ function parseIdLengthValueData(responseData, type) { // type = 'status' ou 'cap
 
 // Mettre à jour l'état VISUEL du toggle et de l'input durée
 function updateTimerToggleVisualState() {
-    if (!timerToggleButton || !timerToggleHandle || !timedDurationInput) return;
+    const timerCheckbox = document.getElementById('timer-toggle-checkbox');
+    if (!timerCheckbox || !timedDurationInput) return;
 
     const isEncoding = (currentEncodingStatus === 1);
-    isTimerEnabled = timerToggleButton.getAttribute('aria-checked') === 'true'; // Lire l'état ARIA
+    isTimerEnabled = timerCheckbox.checked;
 
-    // Mettre à jour l'apparence du toggle
-    if (isTimerEnabled) {
-        timerToggleButton.classList.remove('bg-gray-200');
-        timerToggleButton.classList.add('bg-blue-600'); // Couleur quand activé
-        timerToggleHandle.classList.remove('translate-x-0');
-        timerToggleHandle.classList.add('translate-x-5'); // Déplacer le curseur
-    } else {
-        timerToggleButton.classList.remove('bg-blue-600');
-        timerToggleButton.classList.add('bg-gray-200');
-        timerToggleHandle.classList.remove('translate-x-5');
-        timerToggleHandle.classList.add('translate-x-0');
-    }
-
-    // Activer/Désactiver l'input de durée
+    // L'apparence est gérée par Tailwind (peer-checked), mais on gère l'input de durée
     timedDurationInput.disabled = !isTimerEnabled || isEncoding;
+    timedDurationInput.classList.toggle('opacity-50', timedDurationInput.disabled);
 
-    // Mettre à jour l'état des boutons record/stop (déplacé depuis l'ancienne fonction updateTimerUIState)
     updateRecordButtonStates();
 }
 
-// Fonction pour mettre à jour l'affichage du compte à rebours
 function updateCountdownDisplay() {
-    if (!recordingStartTime || !isTimerEnabled || !startRecordButton) {
-        return; // Ne rien faire si pas en enregistrement timé
-    }
+    if (!recordingStartTime || !isTimerEnabled) return;
+
     const durationMs = parseInt(timedDurationInput.value, 10) * 1000;
     const now = Date.now();
     const elapsedMs = now - recordingStartTime;
@@ -1886,28 +1812,22 @@ function updateCountdownDisplay() {
 
     if (remainingMs <= 0) {
         remainingMs = 0;
-        // *** AJOUT/VÉRIFICATION ***
-        stopCountdownDisplay(); // Arrêter le rafraîchissement quand on atteint 0
+        stopCountdownDisplay();
     }
 
-    const remainingSeconds = Math.ceil(remainingMs / 1000); // Arrondir à la seconde supérieure
-    // Afficher sur le bouton Start (qui est désactivé)
-    if (startRecordButton) { // Vérifier si le bouton existe
-        startRecordButton.textContent = `Arrêt dans ${remainingSeconds}s`;
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    if (shutterFeedbackDiv) {
+        shutterFeedbackDiv.textContent = `Auto-arrêt dans ${remainingSeconds}s`;
     }
 }
 
-// Arrêter l'affichage du compte à rebours et restaurer le bouton
 function stopCountdownDisplay() {
     if (countdownIntervalId) {
         clearInterval(countdownIntervalId);
         countdownIntervalId = null;
     }
-    if (startRecordButton) {
-        // Restaurer le texte seulement si on n'est plus en train d'enregistrer
-        if (currentEncodingStatus === 0) {
-            startRecordButton.textContent = "Démarrer Enreg.";
-        }
+    if (shutterFeedbackDiv) {
+        shutterFeedbackDiv.textContent = currentEncodingStatus === 1 ? "Enregistrement..." : "Prêt";
     }
 }
 
@@ -1924,88 +1844,87 @@ function stopRecordingViaTimer() {
 // Met à jour l'état enabled/disabled des boutons principaux
 function updateRecordButtonStates() {
     const isEncoding = (currentEncodingStatus === 1);
-    // const busy = isCameraBusy; // Obtenir l'état Busy global
-    // console.log(`[UpdateRecordButtons] Exécution. isEncoding=${isEncoding} (currentStatus=${currentEncodingStatus}), isTimerEnabled=${isTimerEnabled}`);
+    const mainActionBtn = document.getElementById('main-action-button');
+    const stopBtn = document.getElementById('stop-record-button');
+    const hilightBtn = document.getElementById('hilight-button');
 
-    if (startRecordButton && stopRecordButton && hilightButton) {
-        // --- Logique START Button ---
-        // Désactivé si on encode OU si la caméra est occupée (sauf si on arrête un timer?) - Gardons simple pour l'instant.
-        startRecordButton.disabled = isEncoding; // || busy;
-        startRecordButton.textContent = "Démarrer Enreg."; // Texte par défaut
+    if (mainActionBtn) {
+        mainActionBtn.classList.toggle('opacity-50', isCameraBusy);
+        mainActionBtn.disabled = isCameraBusy;
+        // Animation et icône gérées par updateRecordingUI appelé via updateSingleStatusDisplay
+        updateRecordingUI(isEncoding);
+    }
 
-        // --- Logique STOP Button ---
-        // Désactivé si on N'encode PAS.
-        stopRecordButton.disabled = !isEncoding;
-        // Cacher si le timer est activé
-        stopRecordButton.style.display = isTimerEnabled ? 'none' : 'inline-flex';
+    if (stopBtn) {
+        stopBtn.disabled = !isEncoding || isCameraBusy;
+        stopBtn.classList.toggle('opacity-30', stopBtn.disabled);
+    }
 
-        // --- Logique HILIGHT Button ---
-        // Désactivé si on N'encode PAS.
-        hilightButton.disabled = !isEncoding;
+    if (hilightBtn) {
+        hilightBtn.disabled = !isEncoding || isCameraBusy;
+        hilightBtn.classList.toggle('opacity-30', hilightBtn.disabled);
+    }
 
-        // --- Logique TIMER spécifique (affichage countdown) ---
-        if (isTimerEnabled) {
-            if (isEncoding) { // Si on encode ET que le timer est actif
-                if (!countdownIntervalId && recordingStartTime) { // Démarrer l'intervalle si pas déjà fait
-                    countdownIntervalId = setInterval(updateCountdownDisplay, 500);
-                }
-                updateCountdownDisplay(); // Mettre à jour l'affichage
-                startRecordButton.disabled = true; // Le bouton start affiche le timer, il est désactivé
-            } else { // Si on n'encode pas OU que le timer est désactivé
-                stopCountdownDisplay(); // Arrêter l'affichage
-                // Start button state is already handled above based on isEncoding/busy
-            }
-
-        } else {
-            stopCountdownDisplay(); // S'assurer que le countdown est arrêté
+    // Gestion Timer
+    if (isTimerEnabled && isEncoding) {
+        if (!countdownIntervalId && recordingStartTime) {
+            countdownIntervalId = setInterval(updateCountdownDisplay, 500);
         }
-
-        // --- Log Final ---
-        // console.log(`[UpdateRecordButtons] -> État final appliqué : Start.disabled=${startRecordButton.disabled}, Stop.disabled=${stopRecordButton.disabled}, Hilight.disabled=${hilightButton.disabled}, Stop.display=${stopRecordButton.style.display}`);
-
-        // Ajouter un style visuel si désactivé à cause de 'busy' (optionnel)
-        const busyOpacity = 0.6;
-        const busyCursor = 'not-allowed';
-        startRecordButton.style.opacity = startRecordButton.disabled ? busyOpacity : 1;
-        startRecordButton.style.cursor = startRecordButton.disabled ? busyCursor : '';
-        stopRecordButton.style.opacity = stopRecordButton.disabled ? busyOpacity : 1;
-        stopRecordButton.style.cursor = stopRecordButton.disabled ? busyCursor : '';
-        hilightButton.style.opacity = hilightButton.disabled ? busyOpacity : 1;
-        hilightButton.style.cursor = hilightButton.disabled ? busyCursor : '';
-
+        updateCountdownDisplay();
     } else {
-        console.warn("[UpdateRecordButtons] Un ou plusieurs boutons non trouvés.");
+        stopCountdownDisplay();
     }
 }
 
 // Met à jour l'indicateur et le texte de statut de connexion
-function updateConnectionStatus(statusText, dotClass) {
-    connectionStatusDiv.innerHTML = `<span class="connection-dot ${dotClass}"></span><span>${statusText}</span>`;
+function updateConnectionStatus(text, dotClass) {
+    const dot = document.getElementById('connection-status-dot');
+    const textEl = document.getElementById('connection-status-text');
+    const overlay = document.getElementById('connection-overlay');
+
+    if (dot) {
+        dot.className = 'w-2.5 h-2.5 rounded-full ' + (
+            dotClass === 'dot-green' ? 'bg-green-500' :
+                dotClass === 'dot-red' ? 'bg-md-error' : 'bg-amber-500'
+        );
+    }
+    if (textEl) textEl.textContent = text;
+
+    if (overlay) {
+        if (dotClass === 'dot-green' || dotClass === 'dot-yellow') {
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+        } else {
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+        }
+    }
 }
 
-// Affiche les messages d'erreur
 function displayError(message) {
     console.error(message);
-    if (errorMessageDiv) errorMessageDiv.textContent = `Erreur: ${message}`;
+    const errorEl = document.getElementById('error-message');
+    if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.parentElement.classList.remove('hidden');
+        setTimeout(() => errorEl.parentElement.classList.add('hidden'), 5000);
+    }
+}
 
-    // --- Vérifier si cette logique est souhaitée ---
-    // Doit-on VRAIMENT réinitialiser si l'appareil est encore connecté ?
-    // Peut-être seulement si l'erreur est TRÈS critique ou si on sait qu'on est déconnecté.
-    // if (goproDevice && !goproDevice.gatt.connected) {
-    //    resetConnectionState(); // Réinitialiser seulement si DÉJÀ déconnecté.
-    // }
-    // --- Fin de la vérification ---
+function updateRecordingUI(isRecording) {
+    const btn = document.getElementById('main-action-button');
+    const dot = document.getElementById('recording-dot');
+    const icon = btn?.querySelector('.material-symbols-outlined');
+    const circle = document.getElementById('recording-circle');
 
-    // Si l'erreur GetHardwareInfo spécifique (status != 0 et != 1 et != 2) se produit,
-    // on pourrait vouloir explicitement arrêter le readiness check ici :
-    if (message.includes("statut inattendu") && message.includes("GetHardwareInfo")) {
-        if (readinessCheckInterval) {
-            clearInterval(readinessCheckInterval);
-            readinessCheckInterval = null;
-            console.log("Arrêt du Readiness Check dû à une erreur GetHardwareInfo inattendue.");
-            // Peut-être déconnecter ici ?
-            // if (goproDevice && goproDevice.gatt.connected) goproDevice.gatt.disconnect();
-        }
+    if (isRecording) {
+        if (dot) dot.classList.remove('hidden');
+        if (icon) icon.textContent = 'stop';
+        if (circle) circle.classList.add('recording-active');
+        if (btn) btn.classList.add('ring-4', 'ring-md-error/20');
+    } else {
+        if (dot) dot.classList.add('hidden');
+        if (icon) icon.textContent = 'videocam';
+        if (circle) circle.classList.remove('recording-active');
+        if (btn) btn.classList.remove('ring-4', 'ring-md-error/20');
     }
 }
 
@@ -2590,11 +2509,12 @@ async function connectGopro() {
         // console.log("[Connect] Fin de la phase de connexion/souscription. Démarrage Readiness Check..."); // <-- NOUVEAU LOG
 
         updateConnectionStatus('Connecté, vérification...', 'dot-yellow');
-        isDisconnecting = false; // <-- Assurer que le drapeau est false après une connexion réussie
-        connectButton.textContent = 'Déconnecter';
-        connectButton.disabled = false; // Peut se déconnecter
+        isDisconnecting = false;
+        if (connectButton) {
+            connectButton.querySelector('.material-symbols-outlined').textContent = 'bluetooth_disabled';
+            connectButton.classList.add('text-md-error');
+        }
 
-        // Démarrer la vérification de disponibilité
         startReadinessCheck();
 
     } catch (error) {
@@ -2907,12 +2827,14 @@ function resetConnectionState() {
 
     // 4. Réinitialiser l'état de l'UI des Contrôles
     if (startRecordButton) {
-        startRecordButton.disabled = true; // Désactivé tant que non connecté/prêt
-        startRecordButton.textContent = "Démarrer Enreg.";
+        startRecordButton.disabled = true;
+    }
+    const mainActionBtn = document.getElementById('main-action-button');
+    if (mainActionBtn) {
+        mainActionBtn.classList.add('opacity-50');
     }
     if (stopRecordButton) {
         stopRecordButton.disabled = true;
-        stopRecordButton.style.display = 'inline-flex'; // Afficher par défaut
     }
     if (hilightButton) hilightButton.disabled = true;
 
@@ -3073,12 +2995,16 @@ document.addEventListener('DOMContentLoaded', async () => { // Rendre l'event li
 
     // --- Éléments UI ---
     connectButton = document.getElementById('connect-button');
-    connectionStatusDiv = document.getElementById('connection-status');
     deviceInfoDiv = document.getElementById('device-info');
     errorMessageDiv = document.getElementById('error-message');
-    controlsSection = document.getElementById('controls-section'); // Pour plus tard
+    controlsSection = document.getElementById('controls-section');
     statusSection = document.getElementById('status-section');
+
     statusBatteryDiv = document.getElementById('status-battery');
+    statusBatteryChip = document.getElementById('status-battery-chip');
+    statusSdChip = document.getElementById('status-sd-chip');
+    statusTempChip = document.getElementById('status-temp-chip');
+
     statusEncodingDiv = document.getElementById('status-encoding');
     statusSdRemainingDiv = document.getElementById('status-sd-remaining');
     statusSdCapacityDiv = document.getElementById('status-sd-capacity');
@@ -3086,44 +3012,47 @@ document.addEventListener('DOMContentLoaded', async () => { // Rendre l'event li
     statusTempDiv = document.getElementById('status-temp');
     statusBusyDiv = document.getElementById('status-busy');
     statusPresetDiv = document.getElementById('status-preset');
-    startRecordButton = document.getElementById('start-record-button');
+
+    startRecordButton = document.getElementById('start-record-button'); // Peut être nul
     stopRecordButton = document.getElementById('stop-record-button');
     shutterFeedbackDiv = document.getElementById('shutter-feedback');
     hilightButton = document.getElementById('hilight-button');
     hilightFeedbackDiv = document.getElementById('hilight-feedback');
-    timerToggleButton = document.getElementById('timer-toggle-button');
-    timerToggleHandle = document.getElementById('timer-toggle-handle');
+
+    const timerCheckbox = document.getElementById('timer-toggle-checkbox');
     timedDurationInput = document.getElementById('timed-duration');
+
     toggleStatusButton = document.getElementById('toggle-status-button');
     statusGrid = document.getElementById('status-grid');
-    presetsContainer = document.getElementById('presets-container'); // <-- AJOUTÉ
-    presetsSection = document.getElementById('presets-section');   // <-- AJOUTÉ
-    presetsFeedback = document.getElementById('presets-feedback');  // <-- AJOUTÉ
+    presetsContainer = document.getElementById('presets-container');
+    presetsSection = document.getElementById('presets-section');
+    presetsFeedback = document.getElementById('presets-feedback');
 
     // --- Fonctions UI ---
     settingResolutionSelect = document.getElementById('setting-2');
-    settingResolutionFeedback = document.getElementById('setting-2-feedback');
-    settingFpsSelect = document.getElementById('setting-3'); // <-- Nouveau
-    settingFpsFeedback = document.getElementById('setting-3-feedback'); // <-- Nouveau
+    settingFpsSelect = document.getElementById('setting-3');
     settingTimelapseRateSelect = document.getElementById('setting-5');
-    settingTimelapseRateFeedback = document.getElementById('setting-5-feedback');
     settingGpsSelect = document.getElementById('setting-83');
-    settingGpsFeedback = document.getElementById('setting-83-feedback');
     settingTimewarpSpeedSelect = document.getElementById('setting-111');
-    settingTimewarpSpeedFeedback = document.getElementById('setting-111-feedback');
     settingLensSelect = document.getElementById('setting-121');
-    settingLensFeedback = document.getElementById('setting-121-feedback');
     settingHypersmoothSelect = document.getElementById('setting-135');
-    settingHypersmoothFeedback = document.getElementById('setting-135-feedback');
 
-    // Références aux conteneurs pour masquer/afficher
-    settingItemResolutionDiv = document.getElementById('setting-item-2'); // Assurez-vous que l'ID existe dans votre HTML
-    settingItemFpsDiv = document.getElementById('setting-item-3');       // Assurez-vous que l'ID existe
+    settingItemResolutionDiv = document.getElementById('setting-item-2');
+    settingItemFpsDiv = document.getElementById('setting-item-3');
     settingItemTimelapseRateDiv = document.getElementById('setting-item-5');
     settingItemGpsDiv = document.getElementById('setting-item-83');
-    settingItemTimewarpSpeedDiv = document.getElementById('setting-item-111');
-    settingItemLensDiv = document.getElementById('setting-item-121');
-    settingItemHypersmoothDiv = document.getElementById('setting-item-135');
+    settingItemTimewarpSpeedDiv = document.getElementById('setting-111');
+    settingItemLensDiv = document.getElementById('setting-121');
+    settingItemHypersmoothDiv = document.getElementById('setting-135');
+
+    // Logic for Main Action Button (Record Toggle)
+    const mainActionBtn = document.getElementById('main-action-button');
+    if (mainActionBtn) {
+        mainActionBtn.addEventListener('click', () => {
+            const isRecording = (currentEncodingStatus === 1);
+            setShutter(!isRecording);
+        });
+    }
 
 
     const protobufReady = await initializeProtobuf(); // Attendre l'initialisation
@@ -3139,14 +3068,11 @@ document.addEventListener('DOMContentLoaded', async () => { // Rendre l'event li
         connectButton.addEventListener('click', connectGopro);
     } else { console.error("Bouton Connecter non trouvé !"); }
 
-    // listener du bouton toggle
-    if (timerToggleButton) {
-        timerToggleButton.addEventListener('click', () => {
-            const currentState = timerToggleButton.getAttribute('aria-checked') === 'true';
-            const newState = !currentState;
-            timerToggleButton.setAttribute('aria-checked', newState.toString()); // Mettre à jour l'attribut ARIA
-            isTimerEnabled = newState; // Mettre à jour la variable globale
-            updateTimerToggleVisualState(); // Mettre à jour l'apparence et l'état des boutons
+    // listener du bouton toggle (Checkbox MD3)
+    if (timerCheckbox) {
+        timerCheckbox.addEventListener('change', () => {
+            isTimerEnabled = timerCheckbox.checked;
+            updateTimerToggleVisualState();
         });
     }
 
