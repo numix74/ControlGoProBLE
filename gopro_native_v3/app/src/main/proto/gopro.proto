@@ -1,0 +1,37 @@
+syntax = "proto2";
+
+package com.ximun.gopropro.proto;
+
+option java_package = "com.ximun.gopropro.proto";
+option java_outer_classname = "GoProProtos";
+
+enum EnumFlatMode {
+    FLAT_MODE_UNKNOWN = -1;
+    FLAT_MODE_VIDEO = 12;
+    FLAT_MODE_TIME_LAPSE_VIDEO = 13;
+    FLAT_MODE_PHOTO_SINGLE = 16;
+}
+
+message PresetSetting {
+    required int32 id = 1;
+    required int32 value = 2;
+    optional bool is_caption = 3;
+}
+
+message Preset {
+    required int32 id = 1;
+    optional int32 mode = 2;
+    optional int32 title_id = 3;
+    optional int32 icon = 6;
+    repeated PresetSetting setting_array = 7;
+    optional string custom_name = 10;
+}
+
+message PresetGroup {
+    required int32 id = 1;
+    repeated Preset preset_array = 2;
+}
+
+message NotifyPresetStatus {
+    repeated PresetGroup preset_group_array = 1;
+}
