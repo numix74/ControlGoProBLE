@@ -6,3 +6,4 @@ app/build/
 *.apk
 *.jks
 .DS_Store
+*.hprof
