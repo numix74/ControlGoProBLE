@@ -19,9 +19,35 @@ object GoProConstants {
     const val CMD_SET_SHUTTER = 0x01
     const val CMD_HILIGHT = 0x18
     const val CMD_LOAD_PRESET = 0x40
+    const val CMD_KEEP_ALIVE = 0x5B
+    const val CMD_KEEP_ALIVE_VAL = 0x42
 
-    // Settings
+    // Query IDs (Corrected for HERO 9/10/11/12)
+    const val QRY_REGISTER_SETTINGS_UPDATES = 0x52
+    const val QRY_REGISTER_STATUS_UPDATES = 0x53
+    const val QRY_GET_STATUS_VALUES = 0x13
+    const val QRY_GET_SETTINGS_VALUES = 0x12
+    const val QRY_GET_SETTING_CAPABILITIES = 0x32
+    const val QRY_REGISTER_CAPABILITIES_UPDATES = 0x62
+    
+    // Async responses
+    const val RSP_ASYNC_SETTING = 0x92
+    const val RSP_ASYNC_STATUS = 0x93
+    const val RSP_ASYNC_CAPABILITIES = 0xA2
+
+    // Setting IDs
     const val SETTING_ID_RESOLUTION = 2
     const val SETTING_ID_FPS = 3
     const val SETTING_ID_LENS = 121
+    const val SETTING_ID_HYPERSMOOTH = 135
+    const val SETTING_ID_COLOR = 134
+    const val SETTING_ID_ISO_MAX = 122
+    const val SETTING_ID_WHITE_BALANCE = 124
+
+    // Status IDs
+    const val STATUS_ID_RECORDING = 10
+    const val STATUS_ID_BATTERY = 70
+    const val STATUS_ID_STORAGE = 54
+    const val STATUS_ID_ACTIVE_PRESET = 97
+    const val STATUS_ID_BUSY = 8
 }

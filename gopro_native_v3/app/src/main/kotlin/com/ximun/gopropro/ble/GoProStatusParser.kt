@@ -14,28 +14,27 @@ class GoProStatusParser {
          */
         fun parseQueryResponse(data: ByteArray): Map<Int, Any> {
             val results = mutableMapOf<Int, Any>()
-            if (data.size < 2) return results
+            if (data.isEmpty()) return results
 
-            val queryId = data[0].toInt() and 0xFF
-            val status = data[1].toInt() and 0xFF
-
-            if (status != 0) {
-                Log.w(TAG, "Query Response Error: $status pour ID: $queryId")
-                return results
-            }
-
-            val payload = data.copyOfRange(2, data.size)
+            val id = data[0].toInt() and 0xFF
+            // Les notifications asynchrones (ex: 0x93) commencent à 0x80
+            val isAsync = id >= 0x80
             
-            when (queryId) {
-                0x13, 0x93 -> { // Status Updates
-                    results.putAll(parseTlv(payload))
+            val offset = if (isAsync) {
+                1
+            } else {
+                // Réponses synchrones : [ID, Status, TLV...]
+                if (data.size < 2) return results
+                val status = data[1].toInt() and 0xFF
+                if (status != 0) {
+                    Log.w(TAG, "Query Error status $status for Query ID 0x${String.format("%02X", id)}")
+                    return results
                 }
-                0x12, 0x92 -> { // Setting Updates
-                    results.putAll(parseTlv(payload))
-                }
-                0x12 -> { // Cas spécifique pour les Presets si envoyé via TLV simple
-                    // Souvent 0x12 est aussi utilisé pour les Presets Protobuf (Feature 0xF5)
-                }
+                2
+            }
+            
+            if (data.size > offset) {
+                results.putAll(parseTlv(data.copyOfRange(offset, data.size)))
             }
             return results
         }
@@ -43,21 +42,24 @@ class GoProStatusParser {
         private fun parseTlv(data: ByteArray): Map<Int, Any> {
             val map = mutableMapOf<Int, Any>()
             var offset = 0
-            while (offset < data.size) {
+            // On a besoin d'au moins 2 octets pour lire le Type et la Longueur
+            while (offset + 1 < data.size) {
                 val id = data[offset++].toInt() and 0xFF
                 val len = data[offset++].toInt() and 0xFF
+
+                if (offset + len > data.size) {
+                    Log.w(TAG, "Données TLV incomplètes pour l'ID $id. Longueur déclarée $len, mais il ne reste que ${data.size - offset} octets.")
+                    // Arrêter l'analyse car le reste des données est probablement corrompu
+                    return map
+                }
+
                 val value = data.copyOfRange(offset, offset + len)
                 offset += len
 
-                // Conversion selon la longueur
-                val parsedValue: Any = when (len) {
-                    1 -> value[0].toInt() and 0xFF
-                    2 -> ByteBuffer.wrap(value).order(ByteOrder.BIG_ENDIAN).short.toInt() and 0xFFFF
-                    4 -> ByteBuffer.wrap(value).order(ByteOrder.BIG_ENDIAN).int
-                    8 -> ByteBuffer.wrap(value).order(ByteOrder.BIG_ENDIAN).long
-                    else -> value
-                }
-                map[id] = parsedValue
+                // On conserve les bytes bruts pour les capacités et les réglages complexes.
+                // La conversion se fera au niveau de la consommation des données.
+                Log.d(TAG, "TLV Parsé - ID: $id, Len: $len")
+                map[id] = value
             }
             return map
         }

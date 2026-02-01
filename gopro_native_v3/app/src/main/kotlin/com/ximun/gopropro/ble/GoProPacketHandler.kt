@@ -16,26 +16,25 @@ class GoProPacketHandler {
             var bytesSent = 0
             var packetCounter = 0
 
-            // --- Premier Paquet ---
-            val headerLength: Int
-            val firstPacketPayloadSize: Int
-            val firstPacket: ByteArray
+            // Spec user: Si > 20 octets, toujours header Extended 13-bit
+            val useExtended = totalLength > 20
 
-            if (totalLength <= mtu - 1) { // Header 5-bit
-                headerLength = 1
-                firstPacket = ByteArray(headerLength + totalLength)
+            // --- Premier Paquet ---
+            val headerLength = if (useExtended) 2 else 1
+            val firstPacketPayloadSize = Math.min(totalLength, mtu - headerLength)
+            val firstPacket = ByteArray(headerLength + firstPacketPayloadSize)
+
+            if (!useExtended) {
+                // Header 5-bit (000LLLLL)
                 firstPacket[0] = (totalLength and 0x1F).toByte()
-                firstPacketPayloadSize = totalLength
-            } else { // Header 13-bit (010LLLLL LLLLLLLL)
-                headerLength = 2
-                firstPacket = ByteArray(mtu)
+            } else {
+                // Header 13-bit (010LLLLL LLLLLLLL)
                 firstPacket[0] = (0x40 or ((totalLength shr 8) and 0x1F)).toByte()
                 firstPacket[1] = (totalLength and 0xFF).toByte()
-                firstPacketPayloadSize = mtu - headerLength
             }
 
             System.arraycopy(payload, 0, firstPacket, headerLength, firstPacketPayloadSize)
-            packets.add(firstPacket.copyOfRange(0, headerLength + firstPacketPayloadSize))
+            packets.add(firstPacket)
             bytesSent += firstPacketPayloadSize
 
             // --- Paquets de Continuation (0x80) ---

@@ -54,22 +54,27 @@ class GoProBleManager(context: Context) : BleManager(context) {
 
         override fun initialize() {
             // Activer les notifications
-            setNotificationCallback(commandRspChar).with { device, data ->
+            setNotificationCallback(commandRspChar).with { _, data ->
+                Log.d(TAG, "Notification brute b5f90073 (CMD RSP): ${data.value?.joinToString("-") { String.format("%02X", it) }}")
                 commandDefragmenter.processPacket(data.value ?: byteArrayOf())?.let {
+                    Log.d(TAG, "Message défragmenté (CMD RSP): ${it.joinToString("-") { String.format("%02X", it) }}")
                     callback?.onMessageReceived(GoProConstants.COMMAND_RSP_CHAR_UUID.toString(), it)
                 }
             }
             enableNotifications(commandRspChar).enqueue()
 
-            setNotificationCallback(settingsRspChar).with { device, data ->
+            setNotificationCallback(settingsRspChar).with { _, data ->
+                Log.d(TAG, "Notification brute b5f90075 (SET RSP): ${data.value?.joinToString("-") { String.format("%02X", it) }}")
                 settingsDefragmenter.processPacket(data.value ?: byteArrayOf())?.let {
                     callback?.onMessageReceived(GoProConstants.SETTINGS_RSP_CHAR_UUID.toString(), it)
                 }
             }
             enableNotifications(settingsRspChar).enqueue()
 
-            setNotificationCallback(queryRspChar).with { device, data ->
+            setNotificationCallback(queryRspChar).with { _, data ->
+                Log.d(TAG, "Notification brute b5f90077 (QRY RSP): ${data.value?.joinToString("-") { String.format("%02X", it) }}")
                 queryDefragmenter.processPacket(data.value ?: byteArrayOf())?.let {
+                    Log.d(TAG, "Message défragmenté (QRY RSP): ${it.joinToString("-") { String.format("%02X", it) }}")
                     callback?.onMessageReceived(GoProConstants.QUERY_RSP_CHAR_UUID.toString(), it)
                 }
             }
@@ -85,12 +90,12 @@ class GoProBleManager(context: Context) : BleManager(context) {
         }
 
         override fun onDeviceReady() {
-            super.onDeviceReady()
+            // Nécessaire pour passer à l'écran de contrôle
             callback?.onConnectionStatusChanged(true)
         }
 
         override fun onServicesInvalidated() {
-            // required since BLE library v2.6.0
+            // Nettoyage optionnel
         }
     }
 
@@ -107,8 +112,11 @@ class GoProBleManager(context: Context) : BleManager(context) {
 
         val packets = GoProPacketHandler.buildBlePackets(payload)
         packets.forEach { packet ->
+            val hexString = packet.joinToString("-") { String.format("%02X", it) }
+            Log.d(TAG, ">>> ENVOI BLE ($charUuid): $hexString")
+            
             writeCharacteristic(characteristic, packet, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
-                .with { device, data -> Log.d(TAG, "Packet envoyé: ${data.value?.size} bytes") }
+                .with { _, data -> Log.d(TAG, "Packet envoyé avec succès: ${data.value?.size} bytes") }
                 .enqueue()
         }
     }
