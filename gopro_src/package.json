@@ -3,7 +3,7 @@
     "tailwindcss": "^4.1.3"
   },
   "name": "nouveau-projet",
-  "version": "1.0.0",
+  "version": "2.3.1",
   "main": "gopro_ble.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

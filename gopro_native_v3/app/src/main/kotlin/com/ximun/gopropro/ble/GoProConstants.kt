@@ -43,11 +43,17 @@ object GoProConstants {
     const val SETTING_ID_COLOR = 134
     const val SETTING_ID_ISO_MAX = 122
     const val SETTING_ID_WHITE_BALANCE = 124
+    const val SETTING_ID_SHARPNESS = 139
+    const val SETTING_ID_BIT_RATE = 144
+    const val SETTING_ID_BIT_DEPTH = 145
+    const val SETTING_ID_VIDEO_PROFILE = 102
 
     // Status IDs
     const val STATUS_ID_RECORDING = 10
     const val STATUS_ID_BATTERY = 70
-    const val STATUS_ID_STORAGE = 54
+    const val STATUS_ID_STORAGE = 54 // SD Remaining (KB) - UInt64
+    const val STATUS_ID_SD_CAPACITY = 117 // SD Capacity (KB) - UInt64
+    const val STATUS_ID_VIDEO_REMAINING = 35 // Video Remaining (Sec) - UInt32
     const val STATUS_ID_ACTIVE_PRESET = 97
     const val STATUS_ID_BUSY = 8
 }

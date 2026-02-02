@@ -1,82 +1,136 @@
 package com.ximun.gopropro.ble
 
 import android.util.Log
-import com.ximun.gopropro.proto.GoProProtos // Note: Nécessite la compilation Gradle pour exister
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
+import com.ximun.gopropro.proto.GoProProtos
 
 class GoProStatusParser {
     companion object {
         private const val TAG = "GoProStatusParser"
 
-        /**
-         * Analyse les messages TLV (Type-Length-Value) du canal Query.
-         */
         fun parseQueryResponse(data: ByteArray): Map<Int, Any> {
-            val results = mutableMapOf<Int, Any>()
-            if (data.isEmpty()) return results
+            val result = mutableMapOf<Int, Any>()
+            if (data.size < 2) return result
 
-            val id = data[0].toInt() and 0xFF
-            // Les notifications asynchrones (ex: 0x93) commencent à 0x80
-            val isAsync = id >= 0x80
-            
-            val offset = if (isAsync) {
-                1
-            } else {
-                // Réponses synchrones : [ID, Status, TLV...]
-                if (data.size < 2) return results
-                val status = data[1].toInt() and 0xFF
-                if (status != 0) {
-                    Log.w(TAG, "Query Error status $status for Query ID 0x${String.format("%02X", id)}")
-                    return results
+            val queryId = data[0].toInt() and 0xFF
+            Log.d(TAG, "🔍 Parsing Query 0x${queryId.toString(16).uppercase()} (taille: ${data.size})")
+
+            // Cas spécial pour les Query Response sur 0xF5 (Protobuf)
+            // L'ID 0xF5 signifie souvent un retour Protobuf pour les presets/modes
+            if (queryId == 0xF5) {
+                // Structure: ID(F5) + Action/Status + Protobuf
+                // Généralement: F5 [Action] [Protobuf...]
+                if (data.size > 2) {
+                    val actionId = data[1].toInt() and 0xFF
+                    val protoData = data.copyOfRange(2, data.size)
+                    Log.d(TAG, "📦 Détection Protobuf 0xF5 (Action 0x${actionId.toString(16)})")
+                    
+                    try {
+                        val message = GoProProtos.NotifyPresetStatus.parseFrom(protoData)
+                        // On retourne le message protobuf complet avec un ID spécial (ex: 0xF500)
+                        result[0xF500] = message
+                        return result
+                    } catch (e: Exception) {
+                         Log.e(TAG, "❌ Erreur décodage Protobuf: ${e.message}")
+                    }
                 }
-                2
             }
-            
-            if (data.size > offset) {
-                results.putAll(parseTlv(data.copyOfRange(offset, data.size)))
-            }
-            return results
-        }
 
-        private fun parseTlv(data: ByteArray): Map<Int, Any> {
-            val map = mutableMapOf<Int, Any>()
-            var offset = 0
-            // On a besoin d'au moins 2 octets pour lire le Type et la Longueur
-            while (offset + 1 < data.size) {
-                val id = data[offset++].toInt() and 0xFF
-                val len = data[offset++].toInt() and 0xFF
-
-                if (offset + len > data.size) {
-                    Log.w(TAG, "Données TLV incomplètes pour l'ID $id. Longueur déclarée $len, mais il ne reste que ${data.size - offset} octets.")
-                    // Arrêter l'analyse car le reste des données est probablement corrompu
-                    return map
+            if (queryId == 0x3C) { // CMD_GET_HARDWARE_INFO
+                // Structure: ID(3C) + Status(00) + [TLV...]
+                // Les valeurs sont des Strings
+                var i = 2
+                 try {
+                    while (i + 1 < data.size) {
+                        val id = data[i++].toInt() and 0xFF
+                        val length = data[i++].toInt() and 0xFF
+                        
+                        if (i + length > data.size) break
+                        
+                        val bytes = data.copyOfRange(i, i + length)
+                        val text = bytes.toString(Charsets.UTF_8)
+                        result[id] = text // ID: 1=Name, 2=MAC, 3=Serial, 6=Firmware
+                        
+                        Log.d(TAG, "ℹ️ Hardware Info - ID $id: $text")
+                        i += length
+                    }
+                    return result // Important: ne pas continuer le parsing standard
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Erreur parsing Hardware Info: ${e.message}")
                 }
-
-                val value = data.copyOfRange(offset, offset + len)
-                offset += len
-
-                // On conserve les bytes bruts pour les capacités et les réglages complexes.
-                // La conversion se fera au niveau de la consommation des données.
-                Log.d(TAG, "TLV Parsé - ID: $id, Len: $len")
-                map[id] = value
             }
-            return map
-        }
 
-        /**
-         * Décodage des Presets via Protobuf (Feature 0xF5, Action 0x72)
-         * Note: Cette méthode sera pleinement fonctionnelle après la compilation Gradle.
-         */
-        fun parsePresets(data: ByteArray): Any? {
-            return try {
-                // Sur Android Natif, on utilise le message généré par le plugin Protobuf
-                // com.ximun.gopropro.proto.GoProProtos.NotifyPresetStatus.parseFrom(data)
-                "Protobuf Message Received: ${data.size} bytes" 
+            // Offset : 2 pour réponse synchrone (ID + Status), 1 pour notification asynchrone
+            var index = if (queryId < 0x80) 2 else 1
+
+            try {
+                // On boucle tant qu'il reste au moins un ID (1 byte) et une Longueur (1 byte)
+                while (index + 1 < data.size) {
+                    val id = data[index++].toInt() and 0xFF
+                    val length = data[index++].toInt() and 0xFF
+
+                    // Log de diagnostic demandé
+                    Log.d(TAG, "Parsing TLV: ID=$id, length=$length, index=$index, size=${data.size}")
+
+                    // Gestion cas length == 0
+                    if (length == 0) {
+                         // Pas de valeur, on passe au suivant si possible
+                         // Mais le curseur index est déjà après length byte.
+                         // Donc on ne fait rien de spécial, on va juste boucler.
+                         continue
+                    }
+
+                    // Vérification critique des limites du buffer pour la valeur
+                    if (index + length > data.size) {
+                        Log.e(TAG, "❌ Buffer underrun pour ID $id : besoin de $length bytes, mais il n'en reste que ${data.size - index}")
+                        break // On sauve ce qu'on a déjà parsé
+                    }
+
+                    when (queryId) {
+                        0x32, 0x62, 0xA2 -> { // Canal des Capacités
+                            // Pour les capacités, on cumule les valeurs possibles par ID
+                            @Suppress("UNCHECKED_CAST")
+                            val existing = result[id] as? MutableList<Int> ?: mutableListOf()
+                            
+                            // ✅ FIX: Décoder la valeur selon sa longueur complète
+                            val value = when (length) {
+                                1 -> data[index].toInt() and 0xFF
+                                2 -> ((data[index].toInt() and 0xFF) shl 8) or 
+                                     (data[index + 1].toInt() and 0xFF)
+                                4 -> {
+                                    var v = 0
+                                    for (i in 0 until 4) {
+                                        v = (v shl 8) or (data[index + i].toInt() and 0xFF)
+                                    }
+                                    v
+                                }
+                                else -> {
+                                    Log.w(TAG, "⚠️ Longueur inhabituelle $length pour capacité ID $id")
+                                    data[index].toInt() and 0xFF
+                                }
+                            }
+                            
+                            existing.add(value)
+                            result[id] = existing
+                        }
+
+                        else -> { // Canal Status et Settings (format standard)
+                            val value = if (length == 1) {
+                                data[index].toInt() and 0xFF
+                            } else {
+                                data.copyOfRange(index, index + length)
+                            }
+                            result[id] = value
+                        }
+                    }
+
+                    index += length
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Erreur décodage Protobuf", e)
-                null
+                Log.e(TAG, "💥 Crash durant le parsing à l'index $index: ${e.message}")
+                Log.e(TAG, "Data hex: ${data.joinToString("-") { String.format("%02X", it) }}")
             }
+
+            return result
         }
     }
 }

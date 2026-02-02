@@ -6,7 +6,7 @@ const CMD_HILIGHT = 0x18;
 const GATT_RETRY_DELAY = 100; // Délai en ms avant de réessayer l'envoi
 
 // --- NOUVEAU: Drapeau pour logs détaillés ---
-const VERBOSE_LOGGING = true; // Mettre à true pour voir tous les logs commentés
+const VERBOSE_LOGGING = false; // Mettre à true pour voir tous les logs commentés
 
 // --- Bluetooth Bridge pour supporter Web et Capacitor (Android) ---
 const BluetoothLe = window.Capacitor ? window.Capacitor.Plugins.BluetoothLe : null;
@@ -640,7 +640,7 @@ let connectButton = null;
 let connectionStatusDiv = null;
 let deviceInfoDiv = null;
 let errorMessageDiv = null;
-let controlsSection = null;
+let connectionOverlay = null;
 let statusSection = null;
 let statusBatteryDiv = null;
 let statusBatteryChip = null;
@@ -651,8 +651,18 @@ let statusSdRemainingDiv = null;
 let statusSdCapacityDiv = null;
 let statusVideoRemainingDiv = null;
 let statusTempDiv = null;
-let statusBusyDiv = null;
 let statusPresetDiv = null;
+let timerCheckbox = null;
+
+// Variables pour les feedbacks settings (déclarées globalement pour éviter ReferenceError)
+let settingResolutionFeedback = null;
+let settingFpsFeedback = null;
+let settingLensFeedback = null;
+let settingGpsFeedback = null;
+let settingHypersmoothFeedback = null;
+let settingTimelapseRateFeedback = null;
+let settingTimewarpSpeedFeedback = null;
+
 // --- NOUVEAU: Système de File d'attente GATT (Command Queue) ---
 class GATTQueue {
     constructor() {
@@ -752,13 +762,12 @@ function updateSingleStatusDisplay(statusId, value) {
                 if (iconSpan) iconSpan.textContent = batteryIcon;
             }
             if (statusBatteryDiv) {
-                displayValue = batteryBarsStatus === 4 ? `${value}% (Charge...)` : `${value}%`;
-                targetElement = statusBatteryDiv;
+                statusBatteryDiv.textContent = `${value}%`;
             }
             break;
         case STATUS_ID_ENCODING:
             targetElement = statusEncodingDiv;
-            displayValue = value === 1 ? '<span class="text-md-error font-bold">ENREG.</span>' : 'Repos';
+            displayValue = value === 1 ? 'ENREGISTREMENT' : 'Repos';
             updateRecordingUI(value === 1);
             break;
         case STATUS_ID_SD_REMAINING:
@@ -766,33 +775,43 @@ function updateSingleStatusDisplay(statusId, value) {
             targetElement = statusSdRemainingDiv;
             displayValue = formatSize(Number(value));
             break;
-        case STATUS_ID_SD_CAPACITY: targetElement = statusSdCapacityDiv; displayValue = formatSize(Number(value)); break;
-        case STATUS_ID_VIDEO_REMAINING: targetElement = statusVideoRemainingDiv; displayValue = formatDuration(value); break;
+        case STATUS_ID_SD_CAPACITY:
+            targetElement = statusSdCapacityDiv;
+            displayValue = formatSize(Number(value));
+            break;
+        case STATUS_ID_VIDEO_REMAINING:
+            targetElement = statusVideoRemainingDiv;
+            displayValue = formatDuration(value);
+            break;
         case STATUS_ID_COLD:
         case STATUS_ID_OVERHEATING:
             targetElement = statusTempDiv;
-            let isCold = (statusId === STATUS_ID_COLD && value === 1) || (currentSettings[STATUS_ID_COLD] === 1 && statusId !== STATUS_ID_COLD);
-            let isHot = (statusId === STATUS_ID_OVERHEATING && value === 1) || (currentSettings[STATUS_ID_OVERHEATING] === 1 && statusId !== STATUS_ID_OVERHEATING);
-            if (isCold) { displayValue = 'Froid'; if (statusTempChip) statusTempChip.textContent = 'Froid'; }
-            else if (isHot) { displayValue = 'Chaud'; if (statusTempChip) statusTempChip.textContent = 'Chaud'; }
-            else { displayValue = 'OK'; if (statusTempChip) statusTempChip.textContent = 'OK'; }
+            let isCold = (statusId === STATUS_ID_COLD && value === 1);
+            let isHot = (statusId === STATUS_ID_OVERHEATING && value === 1);
+            displayValue = isCold ? 'Froid' : (isHot ? 'Chaud' : 'OK');
+            if (statusTempChip) statusTempChip.textContent = displayValue;
             break;
         case STATUS_ID_BUSY:
             targetElement = statusBusyDiv;
-            displayValue = value === 1 ? '<span class="text-amber-600">Occupé</span>' : 'Prêt';
+            displayValue = value === 1 ? 'Occupé' : 'Prêt';
             break;
         case STATUS_ID_PRESET_ACTIVE:
             targetElement = statusPresetDiv;
             const activePresetIdValue = value;
             const cachedPresetInfo = presetInfoCache[activePresetIdValue];
-            displayValue = cachedPresetInfo ? cachedPresetInfo.name : `ID ${activePresetIdValue}`;
-            markActivePresetButton(); // Rafraîchir l'état visuel des boutons presets
+            displayValue = cachedPresetInfo ? cachedPresetInfo.name : `Mode ${activePresetIdValue}`;
+
+            const presetIconEl = document.getElementById('active-preset-icon');
+            if (presetIconEl && cachedPresetInfo) {
+                presetIconEl.textContent = cachedPresetInfo.iconName || 'videocam';
+            }
+            markActivePresetButton();
             break;
         default:
             return;
     }
     if (targetElement) {
-        targetElement.innerHTML = displayValue;
+        targetElement.textContent = displayValue;
     }
 }
 
@@ -1141,64 +1160,47 @@ function processPresetData(presetGroups, actionId) {
 
 // --- Nouvelle fonction UI qui utilise le cache ---
 function updatePresetsUI(availablePresets) {
-    console.log("Mise à jour de l'UI des presets (incluant marquage actif)..."); // Log modifié
     const presetsContainer = document.getElementById('presets-container');
-    const presetsSection = document.getElementById('presets-section'); // Assurez-vous que cet ID correspond à votre HTML
+    const presetsSection = document.getElementById('presets-section');
 
-
-    if (!presetsContainer || !presetsSection) { // Vérifier aussi presetsSection
-        console.error("Éléments UI manquants pour les presets (container ou section).");
-        return;
-    }
+    if (!presetsContainer || !presetsSection) return;
     presetsContainer.innerHTML = '';
 
-    let presetsFound = false;
     const activePresetId = currentSettings[STATUS_ID_PRESET_ACTIVE];
-    // console.log(`  [UpdatePresetsUI] Preset Actif (depuis currentSettings): ${activePresetId}`);
 
     if (!availablePresets || !availablePresets.groups || availablePresets.groups.length === 0) {
-        presetsContainer.textContent = "Aucun preset disponible.";
-        presetsSection.classList.add('hidden'); // Masquer s'il n'y a rien à montrer
+        presetsContainer.innerHTML = '<p class="text-center text-md-outline py-8">Aucun mode disponible.</p>';
         return;
     }
 
-    if (availablePresets.groups && availablePresets.groups.length > 0) {
-        availablePresets.groups.forEach(group => {
-            if (group.presetArray && group.presetArray.length > 0) {
-                presetsFound = true;
-                group.presetArray.forEach(preset => {
-                    const presetButton = document.createElement('button');
-                    const cachedInfo = presetInfoCache[preset.id];
-                    const presetName = cachedInfo ? cachedInfo.name : `ID ${preset.id}`;
+    availablePresets.groups.forEach(group => {
+        if (group.presetArray) {
+            group.presetArray.forEach(preset => {
+                const cachedInfo = presetInfoCache[preset.id];
+                const presetName = cachedInfo ? cachedInfo.name : `Mode ${preset.id}`;
+                const iconName = cachedInfo ? (cachedInfo.iconName || 'videocam') : 'videocam';
 
-                    presetButton.textContent = presetName;
-                    presetButton.className = 'preset-button bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant text-xs font-medium py-3 px-4 rounded-full border border-transparent transition-all active:scale-95 disabled:opacity-40';
-                    presetButton.dataset.presetId = preset.id;
+                const card = document.createElement('button');
+                card.className = `flex items-center space-x-4 p-5 rounded-2xl border-2 transition-all active:scale-[0.98] ${preset.id === activePresetId
+                    ? 'bg-md-primaryContainer border-md-primary text-md-onPrimaryContainer'
+                    : 'bg-md-surfaceVariant/20 border-transparent text-md-onSurfaceVariant'}`;
 
-                    const activePresetId = currentSettings[STATUS_ID_PRESET_ACTIVE];
-                    if (activePresetId !== undefined && preset.id === activePresetId) {
-                        presetButton.classList.add('active-preset');
-                    }
+                card.innerHTML = `
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center ${preset.id === activePresetId ? 'bg-md-primary text-white' : 'bg-md-surfaceVariant text-md-primary'}">
+                        <span class="material-symbols-outlined">${iconName}</span>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-bold text-lg">${presetName}</p>
+                        <p class="text-xs opacity-70">Appuyer pour activer</p>
+                    </div>
+                `;
 
-                    presetButton.disabled = isCameraBusy || (currentEncodingStatus === 1);
-
-                    presetButton.addEventListener('click', () => {
-                        const idToLoad = parseInt(presetButton.dataset.presetId, 10);
-                        if (!isNaN(idToLoad)) loadPreset(idToLoad);
-                    });
-                    presetsContainer.appendChild(presetButton);
-                });
-            }
-        });
-    }
-    // *** Afficher la section SI des presets ont été trouvés et ajoutés ***
-    if (presetsFound) {
-        console.log("[UpdatePresetsUI] Presets trouvés, affichage de la section 'presets-section'.");
-        presetsSection.classList.remove('hidden'); // Retirer la classe 'hidden'
-    } else {
-        if (VERBOSE_LOGGING) console.log("[UpdatePresetsUI] Aucun preset trouvé, la section 'presets-section' reste masquée.");
-        presetsSection.classList.add('hidden'); // Masquer s'il n'y a rien à montrer
-    }
+                card.disabled = isCameraBusy || (currentEncodingStatus === 1);
+                card.onclick = () => loadPreset(preset.id);
+                presetsContainer.appendChild(card);
+            });
+        }
+    });
 }
 
 // Fonction pour initialiser Protobuf
@@ -1292,9 +1294,10 @@ async function getAvailablePresets() {
     if (commandBuffers.length > 0) {
         console.log(`Envoi de GetAvailablePresets (Protobuf) sur Query Char...`);
         try {
-            // Utiliser la fonction sendCommand existante qui gère writeValueWithResponse
-            await sendCommand(queryCharacteristic, commandBuffers);
-            console.log("Requête GetAvailablePresets envoyée.");
+            // Utiliser la fonction sendCommand existante
+            // Tenter d'envoyer sur commandCharacteristic si queryCharacteristic ne fonctionne pas pour les commandes complexes
+            await sendCommand(commandCharacteristic, commandBuffers);
+            console.log("Requête GetAvailablePresets envoyée sur Command Char.");
         } catch (error) {
             console.error("Erreur lors de l'envoi de GetAvailablePresets:", error);
             displayError("Échec de l'envoi de la requête des presets.");
@@ -1392,49 +1395,41 @@ function updateSettingValueState(settingId, currentValue) {
     console.log(`      Valeur actuelle stockée pour Setting ${settingId}:`, currentValue);
 
     // 2. Tenter de mettre à jour la sélection dans l'UI correspondante
-    const selectElement = getSelectElementForSetting(settingId); // Récupérer l'élément <select>
+    const selectElement = getSelectElementForSetting(settingId);
 
+    // Si l'élément select existe mais n'a pas d'options, ou si la sélection échoue, on force l'ajout de l'option
     if (selectElement) {
-        // Vérifier si les options existent déjà (ont été peuplées par les capacités)
-        if (selectElement.options.length > 0) {
-            if (VERBOSE_LOGGING) {
-                console.log(`   (Update State) Tentative de sélection UI pour Setting ${settingId} avec valeur ${currentValue}`);
+        let optionExists = false;
+        // Vérifier si l'option existe déjà
+        for (let i = 0; i < selectElement.options.length; i++) {
+            if (selectElement.options[i].value == currentValue) {
+                optionExists = true;
+                break;
             }
-            selectElement.value = currentValue; // Tenter de sélectionner la nouvelle valeur
-
-            // Vérification optionnelle : est-ce que la sélection a fonctionné ?
-            if (selectElement.value != currentValue) { // Utiliser != car les types peuvent différer (string vs number)
-                // console.warn(`   (Update State) Échec sélection UI pour Setting ${settingId} = ${currentValue}. Option non trouvée dans le select ?`);
-
-                // *** AJOUT LOGS DEBUG ***
-                // console.log(`      DEBUG: Échec sélection pour Setting ID: ${settingId}`); // Log l'ID
-                // console.log(`      DEBUG: Valeur reçue (currentValue): ${currentValue} (Type: ${typeof currentValue})`); // Log la valeur et son type
-                // const capabilities = settingCapabilities[settingId]; // Récupère les capacités stockées
-                // console.log(`      DEBUG: Capacités stockées (settingCapabilities[${settingId}]):`, capabilities ? JSON.stringify(capabilities) : 'Non définies'); // Log les capacités attendues
-                // const currentOptions = Array.from(selectElement.options).map(opt => ({ value: opt.value, text: opt.textContent })); // Récupère les options HTML actuelles
-                // console.log(`      DEBUG: Options actuelles dans le <select> HTML:`, JSON.stringify(currentOptions)); // Log les options réelles
-                // console.log(`      DEBUG: Valeur actuelle de selectElement.value après tentative: ${selectElement.value} (Type: ${typeof selectElement.value})`); // Log la valeur résultante
-                // *** FIN DES LOGS DE DÉBOGAGE ***
-
-            } else {
-                console.log(`   (Update State) Sélection UI pour Setting ${settingId} mise à jour.`);
-            }
-        } else {
-            // Si les options ne sont pas encore là, ce n'est pas grave.
-            // updateSettingUIOptions s'en chargera quand les capacités arriveront.
-            if (VERBOSE_LOGGING) console.log(`   (Update State) Options non encore peuplées pour Setting ${settingId}. Sélection UI différée.`);
         }
-    } else {
-        // Si on n'a pas d'élément select pour ce setting (non géré dans l'UI)
-        if (VERBOSE_LOGGING) console.log(`   (Update State) Pas d'élément Select UI trouvé pour Setting ${settingId}.`);
-    }
 
-    // OPTIONNEL : On pourrait tenter une mise à jour ici SI les options existent déjà,
-    // Tenter de mettre à jour la sélection dans l'UI
-    // updateSettingUISelection(settingId, currentValue);
-    // mais il est plus sûr de laisser updateSettingUIOptions s'en charger.
-    // Laissons cette fonction uniquement pour le stockage pour l'instant.
+        if (!optionExists) {
+            // Créer l'option manquante (fallback)
+            const option = document.createElement('option');
+            option.value = currentValue;
+            option.textContent = `Val: ${currentValue}`;
+            selectElement.appendChild(option);
+
+            // Rendre le parent visible s'il était caché
+            const parentDiv = getParentElementForSetting(settingId);
+            if (parentDiv) parentDiv.classList.remove('hidden');
+            selectElement.disabled = false;
+        }
+
+        // Appliquer la sélection
+        selectElement.value = currentValue;
+
+        // if (VERBOSE_LOGGING) console.log(`   (Update State) Force-add & Select pour Setting ${settingId} = ${currentValue}`);
+    } else {
+        // if (VERBOSE_LOGGING) console.log(`   (Update State) Pas d'élément Select UI trouvé pour Setting ${settingId}.`);
+    }
 }
+
 
 async function setSetting(settingId, value) {
     if (!isCameraReady || !settingsCharacteristic) {
@@ -1849,8 +1844,9 @@ function updateRecordButtonStates() {
     const hilightBtn = document.getElementById('hilight-button');
 
     if (mainActionBtn) {
-        mainActionBtn.classList.toggle('opacity-50', isCameraBusy);
-        mainActionBtn.disabled = isCameraBusy;
+        // Optionnel: On laisse le bouton cliquable même si Busy pour pouvoir stopper si l'UI est désynchronisée
+        mainActionBtn.classList.toggle('opacity-50', isCameraBusy && !isEncoding);
+        mainActionBtn.disabled = isCameraBusy && !isEncoding;
         // Animation et icône gérées par updateRecordingUI appelé via updateSingleStatusDisplay
         updateRecordingUI(isEncoding);
     }
@@ -1878,23 +1874,45 @@ function updateRecordButtonStates() {
 
 // Met à jour l'indicateur et le texte de statut de connexion
 function updateConnectionStatus(text, dotClass) {
-    const dot = document.getElementById('connection-status-dot');
     const textEl = document.getElementById('connection-status-text');
     const overlay = document.getElementById('connection-overlay');
+    const overlayBtn = document.getElementById('connect-button-overlay');
+    const spinner = overlay?.querySelector('.animate-spin');
+    const headerDot = document.getElementById('connection-status-dot');
 
-    if (dot) {
-        dot.className = 'w-2.5 h-2.5 rounded-full ' + (
-            dotClass === 'dot-green' ? 'bg-green-500' :
-                dotClass === 'dot-red' ? 'bg-md-error' : 'bg-amber-500'
-        );
-    }
     if (textEl) textEl.textContent = text;
 
-    if (overlay) {
-        if (dotClass === 'dot-green' || dotClass === 'dot-yellow') {
-            overlay.classList.add('opacity-0', 'pointer-events-none');
+    if (headerDot) {
+        headerDot.className = 'connection-dot ' + (
+            dotClass === 'dot-green' ? 'dot-green' :
+                dotClass === 'dot-red' ? 'dot-red' : 'dot-yellow'
+        );
+    }
+
+    if (overlayBtn) {
+        if (text === 'Connexion...' || text === 'Découverte services...' || text === 'Vérification disponibilité...') {
+            overlayBtn.disabled = true;
+            overlayBtn.textContent = 'Connexion en cours...';
+            if (spinner) spinner.classList.remove('hidden');
+        } else if (text === 'Prêt' || text === 'Connecté' || text.includes('Prêt')) {
+            overlayBtn.disabled = true;
+            overlayBtn.textContent = 'Prêt !';
+            if (spinner) spinner.classList.add('hidden');
+            setTimeout(() => {
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                    overlay.style.display = 'none'; // Force hide
+                }
+            }, 500);
         } else {
-            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            overlayBtn.disabled = false;
+            overlayBtn.textContent = 'Connecter la GoPro';
+            if (spinner) spinner.classList.remove('hidden'); // Oops, should be ADD hidden normally, but let's stick to existing logic for non-ready states
+            if (spinner) spinner.classList.add('hidden'); // Reset spinner for normla state
+            if (overlay) {
+                overlay.classList.remove('hidden');
+                overlay.style.display = 'flex'; // Restore if needed
+            }
         }
     }
 }
@@ -1910,21 +1928,33 @@ function displayError(message) {
 }
 
 function updateRecordingUI(isRecording) {
-    const btn = document.getElementById('main-action-button');
-    const dot = document.getElementById('recording-dot');
-    const icon = btn?.querySelector('.material-symbols-outlined');
+    const mainBtn = document.getElementById('main-action-button');
+    const ring = document.getElementById('record-ring');
     const circle = document.getElementById('recording-circle');
+    const dot = document.getElementById('recording-dot');
+    const iconDot = document.getElementById('record-icon-dot');
+    const btnText = mainBtn ? mainBtn.querySelector('span.tracking-tighter') : null;
 
     if (isRecording) {
+        if (mainBtn) mainBtn.classList.add('is-recording');
+        if (btnText) btnText.textContent = "STOP";
+        if (ring) ring.classList.replace('opacity-0', 'opacity-100');
+        if (circle) {
+            circle.classList.replace('opacity-20', 'opacity-100');
+            circle.classList.replace('scale-90', 'scale-105');
+        }
         if (dot) dot.classList.remove('hidden');
-        if (icon) icon.textContent = 'stop';
-        if (circle) circle.classList.add('recording-active');
-        if (btn) btn.classList.add('ring-4', 'ring-md-error/20');
+        if (iconDot) iconDot.classList.add('animate-pulse');
     } else {
+        if (mainBtn) mainBtn.classList.remove('is-recording');
+        if (btnText) btnText.textContent = "REC";
+        if (ring) ring.classList.replace('opacity-100', 'opacity-0');
+        if (circle) {
+            circle.classList.replace('opacity-100', 'opacity-20');
+            circle.classList.replace('scale-105', 'scale-90');
+        }
         if (dot) dot.classList.add('hidden');
-        if (icon) icon.textContent = 'videocam';
-        if (circle) circle.classList.remove('recording-active');
-        if (btn) btn.classList.remove('ring-4', 'ring-md-error/20');
+        if (iconDot) iconDot.classList.remove('animate-pulse');
     }
 }
 
@@ -2109,43 +2139,49 @@ function handleNotifications(event) {
             // 2. Est-ce une réponse QUERY ? (Peut être Protobuf ou TLV)
             if (sourceUuid === QUERY_RSP_CHAR_UUID) {
                 if (VERBOSE_LOGGING) console.log("[HandleNotify] -> Vérification Protobuf sur Query Response Char..."); // <-- NOUVEAU LOG
+                const id = fullMessagePayload[0];
+                let status = 0;
+                let responseData;
 
-                // 2a. Essayer de traiter comme Protobuf Preset D'ABORD
-                if (!isDisconnecting && Root && NotifyPresetStatusType && fullMessagePayload.length >= 2) { // AJOUT: !isDisconnecting && Root check
-                    const featureId = fullMessagePayload[0];
-                    const actionId = fullMessagePayload[1];
-                    if (featureId === 0xF5 && (actionId === 0xF2 || actionId === 0xF3)) {
-                        console.log(`    >> Détecté Protobuf Preset Status (Feature: 0x${featureId.toString(16)}, Action: 0x${actionId.toString(16)})`);
-                        const protoDataBytes = fullMessagePayload.slice(2);
+                // 2a. Essayer de traiter comme Protobuf Preset (ID 0xF5)
+                // IMPORTANT: Les notifications Query Response peuvent être des TLV OU des Protobuf encapsulés.
+                // Sur HERO11+, 0xF5 est utilisé. Le premier byte est l'ID.
+                // Cependant, contrairement aux settings, il semble y avoir une confusion entre FeatureID 0xF5 (Protobuf) et un Setting ID 0xF5.
+                // Ici, on va assumer que si ça commence par F5, c'est du Protobuf pour les Presets.
+
+                // Note: fullMessagePayload est Uint8Array
+                if (fullMessagePayload.length > 0 && fullMessagePayload[0] === 0xF5) {
+                    // C'est probablement une réponse Protobuf pour les modes/presets !
+                    console.log("[HandleNotify] -> Détection probable Presets 0xF5 sur QueryResponse !");
+
+                    // Structure réponse Protobuf Query:
+                    // Byte 0: Feature ID (0xF5)
+                    // Byte 1: Action ID (0xF2=GetStatusRsp, 0xF3=StatusChange)
+                    // Byte 2...: Protobuf Data
+
+                    if (fullMessagePayload.length >= 3) {
+                        const featureId = fullMessagePayload[0];
+                        const actionId = fullMessagePayload[1];
+                        const protoData = fullMessagePayload.slice(2);
+
+                        console.log(`    >> Parsing Protobuf 0xF5: Action 0x${actionId.toString(16)}, Len: ${protoData.byteLength}`);
+
                         try {
-                            // Décoder le message Protobuf
-                            const decodedPresets = NotifyPresetStatusType.decode(protoDataBytes);
-                            console.log("    >> Presets Protobuf décodés:", JSON.stringify(decodedPresets.toJSON())); // Log l'objet JS
-
-                            // *** Mise à jour Cache ET UI ***
-                            processPresetData(decodedPresets.presetGroupArray, actionId); // Passer actionId pour savoir si c'est initial
-                            return;
-                            // Stocker et mettre à jour l'UI
-                            /* availablePresets.groups = decodedPresets.presetGroupArray || [];
-                            availablePresets.lastUpdateTime = Date.now();
-                            updatePresetsUI(availablePresets.groups); */
+                            // On doit utiliser le type 'NotifyPresetStatus' du proto
+                            // Assumons que protobuf est chargé et 'NotifyPresetStatus' est disponible via Root
+                            if (window.protobufRoot) {
+                                const NotifyPresetStatus = window.protobufRoot.lookupType("open_gopro.proto.NotifyPresetStatus");
+                                const message = NotifyPresetStatus.decode(protoData);
+                                // console.log("    >> Message Protobuf décodé:", JSON.stringify(message.toJSON()));
+                                processPresetData(message, actionId); // Fonction existante pour peupler l'UI
+                            } else {
+                                console.error("ERREUR: Protobuf Root non chargé, impossible de décoder les presets.");
+                            }
                         } catch (e) {
-                            console.error("    >> Erreur lors du décodage Protobuf des presets:", e);
-                            displayError("Erreur lors de la lecture des données de presets.");
+                            console.error("ERREUR Décodage Protobuf Presets:", e);
                         }
-                        // **Important**: Sortir après avoir traité le message Protobuf
-                        // return;
+                        return; // Traité, on sort
                     }
-                    // Ajouter ici d'autres 'if' pour d'autres Feature/Action ID Protobuf si nécessaire
-                }
-                // *** FIN DE LA VÉRIFICATION PROTOBUF ***
-
-                // 2b. SI CE N'ÉTAIT PAS un Protobuf traité, ALORS traiter comme TLV Query
-                if (VERBOSE_LOGGING) console.log("[HandleNotify] -> Parsing comme TLV Query..."); // <-- NOUVEAU LOG
-                const id = fullMessagePayload[0]; // TLV Query ID
-                let status = -1;
-                let responseData = new Uint8Array(0);
-                if (fullMessagePayload.length >= 2) {
                     status = fullMessagePayload[1];
                     responseData = fullMessagePayload.slice(2);
                 } else { responseData = fullMessagePayload.slice(1); }
@@ -2166,6 +2202,47 @@ function handleNotifications(event) {
                             console.log(`[HandleNotify]      -> Parsing TLV Valeurs Settings (Source ID: 0x${id.toString(16)})`); // <-- NOUVEAU LOG
                             parseIdLengthValueData(responseData, 'setting'); // <-- Utiliser type 'setting'
                             break;
+                        case 0xF5: // OPEN_GOPRO_START_GOPRO_APP_RESPONSE ou PRESETS RSP
+                            console.log(`[HandleNotify]      -> Parsing Réponse Protobuf (Source ID: 0xF5)`);
+                            // Décoder le message Protobuf ici
+                            // Structure probable: ID(1) + Status(1) + ProtoBytes(...)
+                            // Mais pour 0xF5 (Get Preset Status), la doc dit que c'est une Query ?
+                            // Vérifions le payload complet
+                            try {
+                                // Enlever ID (1 byte)
+                                const protoPayload = responseData.slice(1);
+                                // Le status est-il inclus ? Pour les commandes normales oui, pour QUERY ?
+                                // Supposons que c'est direct le payload protobuf ou length + payload
+                                // Mais attendez, on est dans handleNotifications.
+                                // Si c'est une réponse à sendQuery sur Query Char, c'est généralement:
+                                // Len(1-2) + ID(1) + Status(1) + Data... MAIS on a déjà parsé len/id/status dans handleNotifications...
+
+                                // ATTENTION: handleNotifications a déjà extrait `responseData` qui contient [ID, Status, Value...] ou similaire ?
+                                // Non, handleNotifications lit la value brute de la caractéristique.
+                                // Puis il extrait l'ID du premier byte.
+
+                                // Pour Query Char:
+                                // Byte 0: ID (ex: 0xF5)
+                                // Byte 1: Status (0=Success)
+                                // Byte 2+: Protobuf Message (NotifyPresetStatus)
+
+                                if (responseData.length > 2) {
+                                    const status = responseData[1];
+                                    if (status === 0) {
+                                        const protoBytes = responseData.slice(2);
+                                        const NotifyPresetStatusType = protobufRoot.lookupType("open_gopro.proto.NotifyPresetStatus");
+                                        const decodedMessage = NotifyPresetStatusType.decode(protoBytes);
+                                        console.log("   -> Message Protobuf Décodé:", decodedMessage);
+                                        // Traiter les presets !
+                                        processPresetData(decodedMessage, id);
+                                    } else {
+                                        console.warn("   -> Réponse Protobuf avec erreur status:", status);
+                                    }
+                                }
+                            } catch (protoErr) {
+                                console.error("   -> Erreur décodage Protobuf:", protoErr);
+                            }
+                            break;
                         case QRY_UNREGISTER_STATUS_UPDATES: // 0x73
                         case QRY_UNREGISTER_CAPABILITIES_UPDATES: // 0x82
                         case QRY_UNREGISTER_SETTING_VALUE_UPDATES: // 0x72
@@ -2180,27 +2257,24 @@ function handleNotifications(event) {
                     displayError(`Erreur requête Query 0x${id.toString(16)} (status ${status})`);
                 }
                 return; // Sortir après traitement TLV Query
+
+                // 3. SINON, UUID inconnu (log optionnel)
+                // console.warn(`    Réponse reçue sur UUID inconnu: ${sourceUuid}`);
+
             }
 
-
-            // 3. SINON, UUID inconnu
-            console.warn(`    Réponse reçue sur UUID inconnu: ${sourceUuid}`);
-            // Fin de la structure if/else if/else pour sourceUuid
-
-        } catch (error) { // Fin du bloc try
-            // Si une erreur survient, s'assurer de réinitialiser l'état du timer
+        } catch (error) { // Catch du bloc try principal de handleNotifications
             console.error("Erreur majeure lors de la gestion des notifications:", error);
             displayError(`Erreur interne: ${error.message}`);
-            // Réinitialiser l'état du timer par sécurité
+            // Sécurité pour le timer
             if (stopTimerTimeoutId) { clearTimeout(stopTimerTimeoutId); stopTimerTimeoutId = null; }
             stopCountdownDisplay();
             recordingStartTime = null;
-            updateRecordButtonStates(); // Mettre à jour les boutons vers un état sûr
+            updateRecordButtonStates();
         }
 
-
     } else if (msgState.isAssembling) {
-        // En attente...
+        // En attente des paquets suivants...
     }
 }
 
@@ -2209,12 +2283,12 @@ function handleShutterResponse(status, responseData) {
     // Logique de la réponse Set Shutter (0x01)
     if (status === 0) {
         if (VERBOSE_LOGGING) console.log("    Réponse Set Shutter (0x01) OK.");
-        shutterFeedbackDiv.textContent = "Commande Shutter reçue.";
+        if (shutterFeedbackDiv) shutterFeedbackDiv.textContent = "Commande Shutter reçue.";
         setTimeout(() => { if (shutterFeedbackDiv) shutterFeedbackDiv.textContent = "" }, 1500);
         // Le changement d'état UI se fera via la notif status 10
     } else {
         console.error(`    Réponse Set Shutter (0x01) ÉCHEC avec statut ${status}`);
-        shutterFeedbackDiv.textContent = `Erreur Shutter (${status})`;
+        if (shutterFeedbackDiv) shutterFeedbackDiv.textContent = `Erreur Shutter (${status})`;
         setTimeout(() => { if (shutterFeedbackDiv) shutterFeedbackDiv.textContent = "" }, 3000);
         // Annuler le timer si la commande de démarrage a échoué
         if (isTimerEnabled && recordingStartTime === null) { // Si timer activé et qu'on essayait de démarrer
@@ -2295,9 +2369,12 @@ async function handleHardwareInfoResponse(status, responseData) { // responseDat
             readinessCheckInterval = null;
         }
         updateConnectionStatus('Prêt', 'dot-green');
-        // Afficher les sections UI pertinentes
-        if (controlsSection) controlsSection.classList.remove('hidden');
-        if (statusSection) statusSection.classList.remove('hidden');
+        if (connectionOverlay) {
+            connectionOverlay.classList.add('hidden');
+            connectionOverlay.style.display = 'none'; // Force hide immédiat
+        }
+        // Par défaut on affiche l'onglet contrôle lors de la connexion
+        if (typeof switchTab === 'function') switchTab('control');
         // La section preset sera affichée par updatePresetsUI si des presets sont trouvés
 
         // Décoder les infos matérielles (basé sur la doc Query -> Get Hardware Info -> Parameters)
@@ -2511,7 +2588,8 @@ async function connectGopro() {
         updateConnectionStatus('Connecté, vérification...', 'dot-yellow');
         isDisconnecting = false;
         if (connectButton) {
-            connectButton.querySelector('.material-symbols-outlined').textContent = 'bluetooth_disabled';
+            const icon = connectButton.querySelector('.material-symbols-outlined');
+            if (icon) icon.textContent = 'bluetooth_disabled';
             connectButton.classList.add('text-md-error');
         }
 
@@ -2613,20 +2691,16 @@ function decodeSettingValue(settingId, valueBytes) {
             case SETTING_ID_VIDEO_LENS:
             case SETTING_ID_GPS:
             case SETTING_ID_HYPERSMOOTH:
-            // --- AJOUT ---
-            case SETTING_ID_VIDEO_TIMELAPSE_RATE: // ID 5
-            case SETTING_ID_TIMEWARP_SPEED:       // ID 111
-                // --- FIN AJOUT ---
+            case SETTING_ID_VIDEO_TIMELAPSE_RATE:
+            case SETTING_ID_TIMEWARP_SPEED:
                 if (valueBytes.length === 1) return dataView.getUint8(0);
-                console.warn(`Setting ${settingId} attendu uint8 mais reçu ${valueBytes.length} bytes.`);
-                return null;
-            // case AUTRE_SETTING_ID_UINT32:
-            //      if (valueBytes.length === 4) return dataView.getUint32(0, false); // Big Endian
-            //      console.warn(...); return null;
+                if (valueBytes.length === 2) return dataView.getUint16(0, false); // Big Endian
+                if (valueBytes.length === 4) return dataView.getUint32(0, false);
+                console.warn(`Setting ${settingId} a une longueur inattendue: ${valueBytes.length}. Retourne Uint8 par défaut.`);
+                return dataView.getUint8(0); // Essayer quand même
             default:
-                console.warn(`Décodage non implémenté pour Setting Value ID: ${settingId}, Length: ${valueBytes.length}`);
-                // Peut-être retourner les bytes bruts pour inspection ?
-                // return valueBytes;
+                if (valueBytes.length === 1) return dataView.getUint8(0);
+                if (valueBytes.length === 4) return dataView.getUint32(0, false);
                 return null;
         }
     } catch (e) {
@@ -2701,9 +2775,13 @@ async function setShutter(start) { // true pour démarrer, false pour arrêter
         return; // Ne pas envoyer la commande
     }
 
-    shutterFeedbackDiv.textContent = start ? "Demande de démarrage..." : "Demande d'arrêt...";
-    startRecordButton.disabled = true; // Désactiver les deux pendant l'envoi
-    stopRecordButton.disabled = true;
+    if (shutterFeedbackDiv) shutterFeedbackDiv.textContent = start ? "Demande de démarrage..." : "Demande d'arrêt...";
+    if (startRecordButton) startRecordButton.disabled = true;
+    if (stopRecordButton) stopRecordButton.disabled = true;
+
+    // Désactiver aussi le bouton principal s'il existe
+    const mainActionBtn = document.getElementById('main-action-button');
+    if (mainActionBtn) mainActionBtn.disabled = true;
 
     const commandId = CMD_SET_SHUTTER;
     const paramValue = start ? 1 : 0; // 1 pour ON, 0 pour OFF
@@ -2816,31 +2894,25 @@ function resetConnectionState() {
     // Utiliser 'if (element)' pour la robustesse
     if (connectionStatusDiv) updateConnectionStatus('Déconnecté', 'dot-red');
     if (connectButton) {
-        connectButton.textContent = 'Connecter';
-        connectButton.disabled = false; // Permettre de reconnecter
+        const icon = connectButton.querySelector('.material-symbols-outlined');
+        if (icon) icon.textContent = 'bluetooth_connected';
+        connectButton.classList.remove('text-md-error');
+        connectButton.disabled = false;
     }
     if (deviceInfoDiv) deviceInfoDiv.textContent = '';
     if (errorMessageDiv) errorMessageDiv.textContent = '';
-    if (controlsSection) controlsSection.classList.add('hidden');
-    if (statusSection) statusSection.classList.add('hidden');
-    if (presetsSection) presetsSection.classList.add('hidden');
+    if (connectionOverlay) connectionOverlay.classList.remove('hidden');
 
     // 4. Réinitialiser l'état de l'UI des Contrôles
-    if (startRecordButton) {
-        startRecordButton.disabled = true;
-    }
-    const mainActionBtn = document.getElementById('main-action-button');
-    if (mainActionBtn) {
-        mainActionBtn.classList.add('opacity-50');
-    }
-    if (stopRecordButton) {
-        stopRecordButton.disabled = true;
-    }
+    if (startRecordButton) startRecordButton.disabled = true;
+    if (stopRecordButton) stopRecordButton.disabled = true;
     if (hilightButton) hilightButton.disabled = true;
 
+    const mainActionBtn = document.getElementById('main-action-button');
+    if (mainActionBtn) mainActionBtn.classList.add('opacity-50');
+
     // Réinitialiser l'UI spécifique au Timer
-    if (timerToggleButton) timerToggleButton.setAttribute('aria-checked', 'false'); // État ARIA initial
-    // Mettre à jour l'apparence visuelle du toggle via la fonction
+    if (timerCheckbox) timerCheckbox.checked = false;
     updateTimerToggleVisualState();
     if (timedDurationInput) timedDurationInput.value = "15"; // Valeur par défaut (input sera désactivé par updateTimerToggleVisualState)
 
@@ -2997,7 +3069,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Rendre l'event li
     connectButton = document.getElementById('connect-button');
     deviceInfoDiv = document.getElementById('device-info');
     errorMessageDiv = document.getElementById('error-message');
-    controlsSection = document.getElementById('controls-section');
+    connectionOverlay = document.getElementById('connection-overlay');
     statusSection = document.getElementById('status-section');
 
     statusBatteryDiv = document.getElementById('status-battery');
@@ -3019,7 +3091,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Rendre l'event li
     hilightButton = document.getElementById('hilight-button');
     hilightFeedbackDiv = document.getElementById('hilight-feedback');
 
-    const timerCheckbox = document.getElementById('timer-toggle-checkbox');
+    timerCheckbox = document.getElementById('timer-toggle-checkbox');
     timedDurationInput = document.getElementById('timed-duration');
 
     toggleStatusButton = document.getElementById('toggle-status-button');
@@ -3045,17 +3117,19 @@ document.addEventListener('DOMContentLoaded', async () => { // Rendre l'event li
     settingItemLensDiv = document.getElementById('setting-121');
     settingItemHypersmoothDiv = document.getElementById('setting-135');
 
-    // Logic for Main Action Button (Record Toggle)
-    const mainActionBtn = document.getElementById('main-action-button');
-    if (mainActionBtn) {
-        mainActionBtn.addEventListener('click', () => {
-            const isRecording = (currentEncodingStatus === 1);
-            setShutter(!isRecording);
-        });
-    }
+    // Initialisation des éléments de feedback (même s'ils n'existent pas dans le HTML actuel, important pour les références JS)
+    // Note: Si le HTML ne les a pas, ils resteront null, mais les variables seront définies.
+    settingResolutionFeedback = document.getElementById('setting-resolution-feedback'); // Idhypothétique
+    settingFpsFeedback = document.getElementById('setting-fps-feedback');
+    settingLensFeedback = document.getElementById('setting-lens-feedback');
+    settingGpsFeedback = document.getElementById('setting-gps-feedback');
+    settingHypersmoothFeedback = document.getElementById('setting-hypersmooth-feedback');
+    settingTimelapseRateFeedback = document.getElementById('setting-timelapse-rate-feedback');
+    settingTimewarpSpeedFeedback = document.getElementById('setting-timewarp-speed-feedback');
 
+    // Logic for Main Action Button (Record Toggle) is handled below with cloneNode to prevent duplicates
 
-    const protobufReady = await initializeProtobuf(); // Attendre l'initialisation
+    const protobufReady = await initializeProtobuf();
 
     if (!protobufReady) {
         // Gérer le cas où protobuf n'a pas pu s'initialiser
@@ -3066,9 +3140,33 @@ document.addEventListener('DOMContentLoaded', async () => { // Rendre l'event li
     // Listener connexion
     if (connectButton) {
         connectButton.addEventListener('click', connectGopro);
-    } else { console.error("Bouton Connecter non trouvé !"); }
+    }
+    const connectButtonOverlay = document.getElementById('connect-button-overlay');
+    if (connectButtonOverlay) {
+        connectButtonOverlay.addEventListener('click', connectGopro);
+    }
+
+    const mainActionBtn = document.getElementById('main-action-button');
+    if (mainActionBtn) {
+        // Supprimer les anciens listeners pour éviter les doublons
+        const newBtn = mainActionBtn.cloneNode(true);
+        mainActionBtn.parentNode.replaceChild(newBtn, mainActionBtn);
+
+        newBtn.addEventListener('click', () => {
+            // Utiliser currentEncodingStatus MAIS aussi vérifier la classe CSS au cas où
+            const isRecordingUI = newBtn.classList.contains('is-recording');
+            const isRecordingData = (currentEncodingStatus === 1);
+
+            // On privilégie la donnée réelle, mais si l'UI dit qu'on enregistre on essaye de stopper
+            const shouldStop = isRecordingData || isRecordingUI;
+
+            console.log(`Clic bouton principal. RecordingData=${isRecordingData}, RecordingUI=${isRecordingUI} -> action=${shouldStop ? 'STOP' : 'START'}`);
+            setShutter(!shouldStop);
+        });
+    }
 
     // listener du bouton toggle (Checkbox MD3)
+    // timerCheckbox est déjà récupéré via getElementById plus haut
     if (timerCheckbox) {
         timerCheckbox.addEventListener('change', () => {
             isTimerEnabled = timerCheckbox.checked;
@@ -3192,3 +3290,31 @@ if (darkModeToggle) {
         }
     });
 }
+
+// Tab Navigation Logic (Global)
+window.switchTab = function (tabId) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+    document.querySelectorAll('.nav-item').forEach(nav => {
+        nav.classList.remove('text-md-primary');
+        nav.classList.add('text-md-outline');
+        const container = nav.querySelector('div');
+        if (container) {
+            container.classList.remove('bg-md-primaryContainer');
+            container.classList.add('bg-transparent');
+        }
+    });
+
+    const targetTab = document.getElementById('tab-' + tabId);
+    if (targetTab) targetTab.classList.remove('hidden');
+
+    const activeNav = document.getElementById('nav-' + tabId);
+    if (activeNav) {
+        activeNav.classList.remove('text-md-outline');
+        activeNav.classList.add('text-md-primary');
+        const activeContainer = activeNav.querySelector('div');
+        if (activeContainer) {
+            activeContainer.classList.remove('bg-transparent');
+            activeContainer.classList.add('bg-md-primaryContainer');
+        }
+    }
+};

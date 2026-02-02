@@ -17,7 +17,7 @@ data class CameraUiState(
     val initialTimerValue: Int = 15,
     val currentTimerValue: Int = 15,
     val batteryLevel: Int = 0,
-    val storageSpace: String = "64 Go",
+    val storageSpace: String = "N/A",
     val currentPresetName: String = "Vidéo",
     val displayTime: String = "00:00",
     val isTimerModeEnabled: Boolean = false,
@@ -25,8 +25,25 @@ data class CameraUiState(
     
     // Nouveaux états pour les réglages
     val settings: Map<Int, Int> = emptyMap(),
-    val capabilities: Map<Int, List<Int>> = emptyMap()
+    val capabilities: Map<Int, List<Int>> = emptyMap(),
+
+    // Nouveaux états pour les presets
+    val presetGroups: List<com.ximun.gopropro.proto.GoProProtos.PresetGroup> = emptyList(),
+    val currentPresetId: Int = -1,
+    
+    // Nouveaux états pour les status
+    val sdRemainingKb: Long = 0L,
+    val sdCapacityKb: Long = 0L,
+    val videoRemainingSec: Int = 0,
+    val storagePercent: Int = 0, 
+    val sdCapacityFormatted: String = "N/A",
+    val videoRemainingTime: String = "N/A", 
+    val tempStatus: String = "OK",
+    
+    val firmwareVersion: String = "v1.40",
+    val serialNumber: String = "C34413..."
 )
+
 
 class GoProViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -41,6 +58,11 @@ class GoProViewModel : ViewModel() {
 
     fun updateBattery(level: Int) {
         _uiState.update { it.copy(batteryLevel = level) }
+    }
+    
+    fun updateTempStatus(isHot: Boolean, isCold: Boolean) {
+        val status = if (isHot) "HOT" else if (isCold) "COLD" else "OK"
+        _uiState.update { it.copy(tempStatus = status) }
     }
 
     fun updateSettings(newSettings: Map<Int, Int>) {
@@ -135,10 +157,75 @@ class GoProViewModel : ViewModel() {
     }
 
     fun updateStorage(space: String) {
+        android.util.Log.d("GoProViewModel", "Update storage: $space")
         _uiState.update { it.copy(storageSpace = space) }
     }
 
     fun updatePreset(name: String) {
         _uiState.update { it.copy(currentPresetName = name) }
+    }
+
+    fun updatePresets(groups: List<com.ximun.gopropro.proto.GoProProtos.PresetGroup>) {
+        _uiState.update { it.copy(presetGroups = groups) }
+    }
+
+    fun updateCurrentPresetId(id: Int) {
+        _uiState.update { it.copy(currentPresetId = id) }
+    }
+
+    fun updateHardwareInfo(serial: String, version: String) {
+        _uiState.update { it.copy(serialNumber = serial, firmwareVersion = version) }
+    }
+
+    fun updateSdRemaining(kb: Long) {
+        val s = formatSize(kb)
+        // Calcul pourcentage si on a la capacité
+        val cap = _uiState.value.sdCapacityKb
+        val pct = if (cap > 0) ((cap - kb).toFloat() / cap * 100).toInt() else 0
+
+        _uiState.update { it.copy(
+            sdRemainingKb = kb, 
+            storageSpace = s,
+            storagePercent = pct
+        ) }
+    }
+
+    fun updateSdCapacity(kb: Long) {
+        val s = formatSize(kb)
+        // Recalcul pourcentage avec nouvelle capacité
+        val rem = _uiState.value.sdRemainingKb
+        val pct = if (kb > 0) ((kb - rem).toFloat() / kb * 100).toInt() else 0
+
+        _uiState.update { it.copy(
+            sdCapacityKb = kb, 
+            sdCapacityFormatted = s,
+            storagePercent = pct
+        ) }
+    }
+
+    fun updateVideoRemaining(seconds: Int) {
+        val t = formatDuration(seconds)
+        _uiState.update { it.copy(videoRemainingSec = seconds, videoRemainingTime = t) }
+    }
+
+    private fun formatSize(kb: Long): String {
+        val mb = kb / 1024f
+        val gb = mb / 1024f
+        return when {
+            gb >= 1 -> String.format("%.0f Go", gb)
+            mb >= 1 -> String.format("%.0f Mo", mb)
+            else -> "$kb Ko"
+        }
+    }
+
+    private fun formatDuration(seconds: Int): String {
+        val h = seconds / 3600
+        val m = (seconds % 3600) / 60
+        val s = seconds % 60
+        return if (h > 0) {
+            String.format("%d:%02d:%02d", h, m, s)
+        } else {
+            String.format("%02d:%02d", m, s)
+        }
     }
 }

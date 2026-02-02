@@ -27,6 +27,7 @@ import com.ximun.gopropro.ui.ConnectionScreen
 import com.ximun.gopropro.ui.DashboardLayout
 import com.ximun.gopropro.ui.theme.GoProTheme
 import com.ximun.gopropro.viewmodel.GoProViewModel
+import com.ximun.gopropro.proto.GoProProtos
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -55,50 +56,131 @@ class MainActivity : ComponentActivity() {
         bleManager = GoProBleManager(this)
         bleManager.callback = object : GoProBleManager.GoProBleCallback {
             override fun onMessageReceived(charUuid: String, data: ByteArray) {
-                when (charUuid) {
-                    GoProConstants.QUERY_RSP_CHAR_UUID.toString() -> {
-                        val queryId = data[0].toInt() and 0xFF
-                        val updates = GoProStatusParser.parseQueryResponse(data)
-                        
-                        // Helper pour convertir ByteArray en Int (Big Endian)
-                        fun toInt(v: Any?): Int {
-                            val bytes = v as? ByteArray ?: return 0
-                            return when (bytes.size) {
-                                1 -> bytes[0].toInt() and 0xFF
-                                2 -> ((bytes[0].toInt() and 0xFF) shl 8) or (bytes[1].toInt() and 0xFF)
-                                4 -> ((bytes[0].toInt() and 0xFF) shl 24) or ((bytes[1].toInt() and 0xFF) shl 16) or 
-                                     ((bytes[2].toInt() and 0xFF) shl 8) or (bytes[3].toInt() and 0xFF)
-                                else -> 0
+                Log.d("MainActivity", "📥 Message reçu sur $charUuid, taille=${data.size}")
+                
+                // On délègue le traitement au thread UI pour garantir la recomposition fluide
+                lifecycleScope.launch {
+                    when (charUuid) {
+                        GoProConstants.COMMAND_RSP_CHAR_UUID.toString() -> {
+                            // Vérifier si c'est la réponse à Get Hardware Info (0x3C)
+                            val cmdId = data[0].toInt() and 0xFF
+                            if (cmdId == GoProConstants.CMD_GET_HARDWARE_INFO) {
+                                val info = GoProStatusParser.parseQueryResponse(data)
+                                val serial = info[3] as? String ?: "Unknown" // ID 3 = Serial
+                                val version = info[6] as? String ?: "v0.0"   // ID 6 = Version
+                                viewModel.updateHardwareInfo(serial, version)
+                                Log.d("MainActivity", "ℹ️ Hardware Info: Serial=$serial, Ver=$version")
                             }
                         }
-
-                        when (queryId) {
-                            GoProConstants.QRY_GET_STATUS_VALUES, GoProConstants.RSP_ASYNC_STATUS, GoProConstants.QRY_REGISTER_STATUS_UPDATES -> {
-                                updates.forEach { (id, value) ->
-                                    val intVal = toInt(value)
-                                    when (id) {
-                                        GoProConstants.STATUS_ID_BATTERY -> viewModel.updateBattery(intVal)
-                                        GoProConstants.STATUS_ID_RECORDING -> viewModel.updateRecording(intVal == 1)
-                                        GoProConstants.STATUS_ID_STORAGE -> viewModel.updateStorage("$intVal KB")
-                                        GoProConstants.STATUS_ID_ACTIVE_PRESET -> viewModel.updatePreset("Mode $intVal")
+                        
+                        GoProConstants.QUERY_RSP_CHAR_UUID.toString() -> {
+                            val queryId = data[0].toInt() and 0xFF
+                            Log.d("MainActivity", "🔍 Query Response ID: 0x${queryId.toString(16).uppercase()}")
+                            
+                            // Détection explicite de la notification Preset Protobuf 0xF5
+                            if (queryId == 0xF5) {
+                                val updates = GoProStatusParser.parseQueryResponse(data)
+                                if (updates.containsKey(0xF500)) {
+                                    val notifyMsg = updates[0xF500] as? GoProProtos.NotifyPresetStatus
+                                    if (notifyMsg != null) {
+                                        Log.d("MainActivity", "📺 Presets Reçus : ${notifyMsg.presetGroupArrayCount} groupes")
+                                        viewModel.updatePresets(notifyMsg.presetGroupArrayList)
                                     }
                                 }
+                                return@launch
                             }
-                            GoProConstants.QRY_GET_SETTINGS_VALUES, GoProConstants.RSP_ASYNC_SETTING, GoProConstants.QRY_REGISTER_SETTINGS_UPDATES -> {
-                                val settingsUpdate = updates.mapValues { (_, v) -> toInt(v) }
-                                viewModel.updateSettings(settingsUpdate)
+
+                            val updates = try {
+                                GoProStatusParser.parseQueryResponse(data)
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", "❌ Erreur critique lors du parsing: ${e.message}")
+                                Log.e("MainActivity", "Dump hex: ${data.joinToString("-") { String.format("%02X", it) }}")
+                                emptyMap()
                             }
-                            GoProConstants.QRY_GET_SETTING_CAPABILITIES, GoProConstants.RSP_ASYNC_CAPABILITIES, GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES -> {
-                                val capsUpdate = updates.mapValues { (_, v) -> 
-                                    (v as? ByteArray)?.map { it.toInt() and 0xFF } ?: emptyList()
+                            
+                            if (updates.isEmpty()) return@launch
+                            
+                            // Helper robuste pour convertir n'importe quel type en Int (max 4 bytes)
+                            fun convertToInt(v: Any?): Int {
+                                when (v) {
+                                    is Int -> return v
+                                    is ByteArray -> {
+                                        // Big Endian
+                                        return when (v.size) {
+                                            1 -> v[0].toInt() and 0xFF
+                                            2 -> ((v[0].toInt() and 0xFF) shl 8) or (v[1].toInt() and 0xFF)
+                                            4 -> ((v[0].toInt() and 0xFF) shl 24) or ((v[1].toInt() and 0xFF) shl 16) or 
+                                                 ((v[2].toInt() and 0xFF) shl 8) or (v[3].toInt() and 0xFF)
+                                            else -> 0
+                                        }
+                                    }
+                                    is List<*> -> return (v.firstOrNull() as? Int) ?: 0
+                                    else -> return 0
                                 }
-                                viewModel.updateCapabilities(capsUpdate)
-                                Log.d("MainActivity", "Capacités reçues : ${capsUpdate.keys}")
+                            }
+
+                            // Helper pour convertir en Long (jusqu'à 8 bytes)
+                            fun convertToLong(v: Any?): Long {
+                                when (v) {
+                                    is Int -> return v.toLong()
+                                    is Long -> return v
+                                    is ByteArray -> {
+                                        var res: Long = 0
+                                        for (b in v) {
+                                            res = (res shl 8) or (b.toInt() and 0xFF).toLong()
+                                        }
+                                        return res
+                                    }
+                                    else -> return 0L
+                                }
+                            }
+
+                            when (queryId) {
+                                GoProConstants.QRY_GET_STATUS_VALUES, GoProConstants.RSP_ASYNC_STATUS, GoProConstants.QRY_REGISTER_STATUS_UPDATES -> {
+                                    updates.forEach { (id, value) ->
+                                        when (id) {
+                                            GoProConstants.STATUS_ID_BATTERY -> viewModel.updateBattery(convertToInt(value))
+                                            GoProConstants.STATUS_ID_RECORDING -> viewModel.updateRecording(convertToInt(value) == 1)
+                                            
+                                            // 64-bit Values
+                                            GoProConstants.STATUS_ID_STORAGE -> viewModel.updateSdRemaining(convertToLong(value))
+                                            GoProConstants.STATUS_ID_SD_CAPACITY -> viewModel.updateSdCapacity(convertToLong(value))
+                                            
+                                            // 32-bit Values
+                                            GoProConstants.STATUS_ID_VIDEO_REMAINING -> viewModel.updateVideoRemaining(convertToInt(value))
+                                            
+                                            GoProConstants.STATUS_ID_ACTIVE_PRESET -> {
+                                                val v = convertToInt(value)
+                                                viewModel.updatePreset("Mode $v")
+                                                viewModel.updateCurrentPresetId(v)
+                                            }
+                                            GoProConstants.STATUS_ID_BUSY -> Log.d("MainActivity", if (convertToInt(value) == 1) "Caméra occupée..." else "Caméra prête")
+                                        }
+                                    }
+                                }
+                                GoProConstants.QRY_GET_SETTINGS_VALUES, GoProConstants.RSP_ASYNC_SETTING, GoProConstants.QRY_REGISTER_SETTINGS_UPDATES -> {
+                                    val settingsUpdate = updates.mapValues { (_, v) -> convertToInt(v) }
+                                    Log.d("MainActivity", "⚙️ Settings mis à jour: $settingsUpdate")
+                                    viewModel.updateSettings(settingsUpdate)
+                                }
+                                GoProConstants.QRY_GET_SETTING_CAPABILITIES, GoProConstants.RSP_ASYNC_CAPABILITIES, GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES -> {
+                                    val capsUpdate = updates.mapValues { (_, v) ->
+                                        @Suppress("UNCHECKED_CAST")
+                                        when (v) {
+                                            is List<*> -> v.map { it as Int }
+                                            is ByteArray -> listOf(v[0].toInt() and 0xFF)
+                                            is Int -> listOf(v)
+                                            else -> emptyList()
+                                        }
+                                    }
+                                    Log.d("MainActivity", "📦 Réception Capacités (${capsUpdate.size} réglages)")
+                                    viewModel.updateCapabilities(capsUpdate)
+                                }
                             }
                         }
-                    }
-                    GoProConstants.COMMAND_RSP_CHAR_UUID.toString() -> {
-                        // ACK de commande simple
+                        GoProConstants.COMMAND_RSP_CHAR_UUID.toString() -> {
+                            Log.d("MainActivity", "✅ ACK Reçu (CMD RSP)")
+                        }
                     }
                 }
             }
@@ -107,9 +189,14 @@ class MainActivity : ComponentActivity() {
                 viewModel.updateConnection(connected)
                 if (connected) {
                     lifecycleScope.launch {
-                        delay(500) // Un court délai suffit après onDeviceReady
-                        subscribeToUpdates()
-                        startKeepAlive()
+                        delay(1000) // Augmenter à 1 seconde
+                        try {
+                            subscribeToUpdates()
+                            delay(500)
+                            startKeepAlive()
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "❌ Erreur subscribeToUpdates: ${e.message}", e)
+                        }
                     }
                 } else {
                     keepAliveJob?.cancel()
@@ -143,7 +230,8 @@ class MainActivity : ComponentActivity() {
                                 GoProConstants.SETTINGS_CHAR_UUID,
                                 byteArrayOf(id.toByte(), 1, value.toByte())
                             )
-                        }
+                        },
+                        onLoadPreset = { loadPreset(it) }
                     )
                 }
             }
@@ -175,44 +263,140 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun subscribeToUpdates() {
-        Log.d("MainActivity", "Abonnement aux notifications (0x53, 0x52)...")
+        Log.d("MainActivity", "🚀 DÉBUT subscribeToUpdates")
         
-        // Liste des IDs à surveiller (basé sur le JS)
-        val statusIds = byteArrayOf(
-            GoProConstants.STATUS_ID_RECORDING.toByte(),
-            GoProConstants.STATUS_ID_BATTERY.toByte(),
-            GoProConstants.STATUS_ID_STORAGE.toByte(),
-            GoProConstants.STATUS_ID_ACTIVE_PRESET.toByte(),
-            GoProConstants.STATUS_ID_BUSY.toByte()
-        )
-        
-        val settingIds = byteArrayOf(
-            GoProConstants.SETTING_ID_RESOLUTION.toByte(),
-            GoProConstants.SETTING_ID_FPS.toByte(),
-            GoProConstants.SETTING_ID_LENS.toByte(),
-            GoProConstants.SETTING_ID_HYPERSMOOTH.toByte(),
-            GoProConstants.SETTING_ID_COLOR.toByte(),
-            GoProConstants.SETTING_ID_ISO_MAX.toByte(),
-            GoProConstants.SETTING_ID_WHITE_BALANCE.toByte()
-        )
+        try {
+            // IDs des status
+            val statusIds = byteArrayOf(
+                GoProConstants.STATUS_ID_RECORDING.toByte(),
+                GoProConstants.STATUS_ID_BATTERY.toByte(),
+                GoProConstants.STATUS_ID_STORAGE.toByte(),
+                GoProConstants.STATUS_ID_SD_CAPACITY.toByte(),
+                GoProConstants.STATUS_ID_VIDEO_REMAINING.toByte(),
+                GoProConstants.STATUS_ID_ACTIVE_PRESET.toByte(),
+                GoProConstants.STATUS_ID_BUSY.toByte()
+            )
+            
+            // IDs des settings
+            val settingIds = listOf(
+                GoProConstants.SETTING_ID_RESOLUTION,
+                GoProConstants.SETTING_ID_FPS,
+                GoProConstants.SETTING_ID_LENS,
+                GoProConstants.SETTING_ID_HYPERSMOOTH,
+                GoProConstants.SETTING_ID_COLOR,
+                GoProConstants.SETTING_ID_ISO_MAX,
+                GoProConstants.SETTING_ID_WHITE_BALANCE,
+                GoProConstants.SETTING_ID_SHARPNESS,
+                GoProConstants.SETTING_ID_BIT_RATE,
+                GoProConstants.SETTING_ID_BIT_DEPTH,
+                GoProConstants.SETTING_ID_VIDEO_PROFILE
+            )
+            
+            Log.d("MainActivity", "📡 1. Register Status Updates (0x53)")
+            bleManager.sendGoProCommand(
+                GoProConstants.QUERY_CHAR_UUID, 
+                byteArrayOf(GoProConstants.QRY_REGISTER_STATUS_UPDATES.toByte()) + statusIds
+            )
+            delay(300)
+            
+            Log.d("MainActivity", "📡 2. Register Settings Updates (0x52)")
+            bleManager.sendGoProCommand(
+                GoProConstants.QUERY_CHAR_UUID, 
+                byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()) + 
+                settingIds.map { it.toByte() }.toByteArray()
+            )
+            delay(300)
+            
+            Log.d("MainActivity", "📡 3. Get Status Values (0x13)")
+            bleManager.sendGoProCommand(
+                GoProConstants.QUERY_CHAR_UUID, 
+                byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte())
+            )
+            delay(300)
+            
+            Log.d("MainActivity", "📡 4. Get Settings Values (0x12)")
+            bleManager.sendGoProCommand(
+                GoProConstants.QUERY_CHAR_UUID, 
+                byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte())
+            )
+            delay(500)
+            
+            Log.d("MainActivity", "📡 5. Récupération des capacités individuelles")
+            settingIds.forEachIndexed { index, settingId ->
+                Log.d("MainActivity", "   ⭐ Get Capability pour Setting ID $settingId (${index + 1}/${settingIds.size})")
+                // Format: [0x32, SettingID] - UN SEUL setting par requête
+                bleManager.sendGoProCommand(
+                    GoProConstants.QUERY_CHAR_UUID,
+                    byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte(), settingId.toByte())
+                )
+                delay(800) // Augmenté à 800ms pour plus de stabilité
+            }
+            
+            Log.d("MainActivity", "📡 6. Récupération des Presets (Protobuf 0xF5)")
+            fetchPresets()
+            delay(500)
+            
+            Log.d("MainActivity", "📡 7. Récupération Hardware Info (0x3C)")
+            getHardwareInfo()
+            delay(300)
 
-        // 1. S'abonner aux changements (Notifications asynchrones 0x93, 0x92, 0xA2)
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_STATUS_UPDATES.toByte()) + statusIds)
-        delay(300)
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()) + settingIds)
-        delay(300)
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES.toByte()) + settingIds)
-        delay(300)
+            Log.d("MainActivity", "✅ subscribeToUpdates TERMINÉ")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ Erreur dans subscribeToUpdates: ${e.message}", e)
+            throw e
+        }
+    }
 
-        // 2. Récupérer l'état initial (Get All)
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()))
-        delay(300)
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()))
-        delay(300)
+    private fun fetchPresets() {
+        try {
+            // Encodage manuel du Protobuf RequestGetPresetStatus
+            // Wire format: repeated enum (field 1, wire type 0)
+            // Tag = (1 << 3) | 0 = 0x08
+            val protoBytes = byteArrayOf(
+                0x08, 0x01,  // Field 1 = REGISTER_PRESET_STATUS_PRESET (1)
+                0x08, 0x02   // Field 1 = REGISTER_PRESET_STATUS_PRESET_GROUP_ARRAY (2)
+            )
+
+            // Format GoPro: [Feature ID] [Action ID] [Protobuf Payload]
+            val packet = ByteArray(2 + protoBytes.size)
+            packet[0] = 0xF5.toByte()  // Feature ID: Preset Status
+            packet[1] = 0x01.toByte()  // Action ID: Register
+            System.arraycopy(protoBytes, 0, packet, 2, protoBytes.size)
+
+            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, packet)
+            Log.d("MainActivity", "📨 Requête Presets envoyée (${packet.size} bytes)")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ Erreur construction requête Presets: ${e.message}")
+        }
+    }
+
+    private fun getHardwareInfo() {
+        // Envoi commande 0x3C sur COMMAND UUID
+        bleManager.sendGoProCommand(
+            GoProConstants.COMMAND_CHAR_UUID,
+            byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte(), 0x00) // 0x00 Length (ou pas de longueur pour cmd simple?)
+            // Spec OpenGoPro: Length 0. 
+        )
+        // Correction: CMD_GET_[...] sont souvent Length 0x00
+        bleManager.sendGoProCommand(
+            GoProConstants.COMMAND_CHAR_UUID,
+            byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte(), 0x00)
+        )
+    }
+
+    private fun loadPreset(presetId: Int) {
+        // Commande 0x40 (Load Preset) - Payload 4 bytes Big Endian
+        val payload = ByteArray(6)
+        payload[0] = 0x40.toByte() // ID
+        payload[1] = 0x04.toByte() // Length
+        payload[2] = ((presetId shr 24) and 0xFF).toByte()
+        payload[3] = ((presetId shr 16) and 0xFF).toByte()
+        payload[4] = ((presetId shr 8) and 0xFF).toByte()
+        payload[5] = (presetId and 0xFF).toByte()
         
-        // 3. Récupérer les capacités (options disponibles pour chaque réglage)
-        Log.d("MainActivity", "Récupération des capacités (0x32)...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte()) + settingIds)
+        // Les commandes comme Load Preset (0x40) vont sur COMMAND_CHAR_UUID (GP-0072)
+        bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, payload)
+        Log.d("MainActivity", "▶️ Load Preset $presetId sent")
     }
 
     private fun handleRecordToggle() {

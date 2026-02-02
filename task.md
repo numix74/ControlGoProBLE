@@ -24,12 +24,12 @@
     - [x] Interface Style "Navy Card" & "Teal Accent".
     - [x] Récupération dynamique des Valeurs et Capacités (Query 0x12/0x32).
     - [x] Boîte de dialogue de sélection des paramètres (Protune complet).
-- [x] **Stabilité & Sync** : Adéquation avec le projet JS (Keep Alive 0x5B, Subs 0x52/0x53).
+- [x] **Stabilité & Sync** : Correction Parser TLV (Crash #122), Keep Alive 0x5B, Subs 0x52/0x53.
 - [ ] **Onglet Presets (4.3)** :
-    - [ ] Lister les presets de la caméra (Protobuf Feature 0xF5).
-    - [ ] Permettre le chargement rapide d'un preset.
+    - [x] Lister les presets de la caméra (Protobuf Feature 0xF5).
+    - [x] Permettre le chargement rapide d'un preset.
 - [ ] **Onglet Status (4.4)** :
-    - [ ] Affichage détaillé (Espace restant exact, Température, Version Firmware).
+    - [x] Affichage détaillé (Espace restant exact, Température, Version Firmware).
 
 ## ⚪ PHASE 5 : Refonte Esthétique & Polissage
 - [ ] **Aesthetics Luxe** : Dégradés HSL, Glassmorphism sur la NavBar, Ombres portées.

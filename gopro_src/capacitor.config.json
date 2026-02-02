@@ -1,6 +1,6 @@
 {
-  "appId": "com.numix74.controlgoproble",
-  "appName": "ControlGoProBLE",
+  "appId": "com.numix74.controlgoproble.v2",
+  "appName": "GoPro Control v2",
   "webDir": "www",
   "bundledWebRuntime": false
 }

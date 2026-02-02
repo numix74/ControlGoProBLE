@@ -35,7 +35,8 @@ fun DashboardLayout(
     onToggleTimerMode: () -> Unit,
     onAdjustTimer: (Int) -> Unit,
     onTabSelected: (Int) -> Unit,
-    onUpdateSetting: (Int, Int) -> Unit
+    onUpdateSetting: (Int, Int) -> Unit,
+    onLoadPreset: (Int) -> Unit
 ) {
     Scaffold(
         bottomBar = {
@@ -47,8 +48,8 @@ fun DashboardLayout(
             when (state.selectedTab) {
                 0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onToggleTimerMode, onAdjustTimer)
                 1 -> SettingsScreen(state, onUpdateSetting)
-                2 -> PlaceholderScreen("PRESETS", Icons.Default.Tune)
-                3 -> PlaceholderScreen("STATUS", Icons.Default.Info)
+                2 -> PresetsScreen(state, onLoadPreset)
+                3 -> StatusScreen(state)
             }
         }
     }
@@ -271,5 +272,24 @@ fun NavItem(title: String, icon: ImageVector, isSelected: Boolean, onClick: () -
     ) {
         Icon(icon, null, tint = if (isSelected) AppPrimary else Color.Gray, modifier = Modifier.size(24.dp))
         Text(title, color = if (isSelected) Color.White else Color.Gray, fontSize = 10.sp)
+    }
+}
+
+@Composable
+fun headerSection(title: String, subtitle: String) {
+    Column {
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black
+        )
+        Text(
+            text = subtitle,
+            color = PrimaryTeal,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
+        )
     }
 }

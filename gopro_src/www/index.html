@@ -138,6 +138,22 @@
         .recording-pulse {
             animation: pulse-red 1.5s infinite ease-in-out;
         }
+
+        /* État Enregistrement pour le bouton principal */
+        #main-action-button.is-recording {
+            background-color: #BA1A1A !important;
+            /* Material Red */
+            border-color: white !important;
+            box-shadow: 0 0 30px rgba(186, 26, 26, 0.6);
+        }
+
+        #main-action-button.is-recording #record-icon-dot {
+            background-color: white !important;
+        }
+
+        #main-action-button.is-recording span:not(#record-icon-dot):not(#recording-dot) {
+            color: white !important;
+        }
     </style>
 </head>
 
@@ -164,159 +180,256 @@
     </header>
 
     <!-- Main Content Area -->
-    <main class="flex-grow overflow-y-auto px-4 py-6 pb-32 space-y-6">
+    <main class="flex-grow overflow-hidden relative">
 
-        <!-- Quick Status Chips Row -->
-        <div id="status-chips" class="flex overflow-x-auto space-x-3 no-scrollbar pb-2">
-            <div
-                class="flex items-center bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant px-3 py-2 rounded-full shrink-0">
-                <span class="material-symbols-outlined text-sm mr-2">battery_horiz_075</span>
-                <span id="status-battery-chip" class="text-sm font-medium">--%</span>
+        <!-- Tab 1: Control (Active) -->
+        <section id="tab-control" class="tab-content h-full p-4 space-y-6 overflow-y-auto">
+            <!-- Summary Bar (Always visible in Control) -->
+            <div id="status-chips" class="flex overflow-x-auto space-x-3 no-scrollbar pb-2">
+                <div
+                    class="flex items-center bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant px-3 py-2 rounded-full shrink-0">
+                    <span class="material-symbols-outlined text-sm mr-2 text-md-primary">battery_horiz_075</span>
+                    <span id="status-battery-chip" class="text-sm font-medium">--%</span>
+                </div>
+                <div
+                    class="flex items-center bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant px-3 py-2 rounded-full shrink-0">
+                    <span class="material-symbols-outlined text-sm mr-2 text-md-primary">sd_card</span>
+                    <span id="status-sd-chip" class="text-sm font-medium">-- GB</span>
+                </div>
+                <div
+                    class="flex items-center bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant px-3 py-2 rounded-full shrink-0">
+                    <span class="material-symbols-outlined text-sm mr-2 text-md-primary">thermostat</span>
+                    <span id="status-temp-chip" class="text-sm font-medium">--°</span>
+                </div>
             </div>
-            <div
-                class="flex items-center bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant px-3 py-2 rounded-full shrink-0">
-                <span class="material-symbols-outlined text-sm mr-2">sd_card</span>
-                <span id="status-sd-chip" class="text-sm font-medium">-- GB</span>
-            </div>
-            <div
-                class="flex items-center bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant px-3 py-2 rounded-full shrink-0">
-                <span class="material-symbols-outlined text-sm mr-2">thermostat</span>
-                <span id="status-temp-chip" class="text-sm font-medium">--°</span>
-            </div>
-        </div>
 
-        <!-- Connection Placeholder / Error -->
-        <div id="connection-overlay"
-            class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-m3 border border-blue-100 dark:border-blue-800 text-center space-y-2">
-            <p id="connection-status-text" class="text-md-primary dark:text-blue-300 font-medium italic">Cliquez sur
-                l'icône Bluetooth pour vous connecter.</p>
-            <p id="error-message" class="text-xs text-md-error animate-pulse"></p>
-        </div>
+            <!-- Main Control View -->
+            <div class="flex flex-col items-center justify-center space-y-8 py-8">
+                <!-- Record Button Container (Design from Image 1) -->
+                <div class="relative group">
+                    <div id="record-ring"
+                        class="absolute -inset-6 rounded-full bg-red-600/20 blur-xl opacity-0 transition-all duration-700">
+                    </div>
+                    <div id="recording-circle"
+                        class="absolute -inset-2 rounded-full border-2 border-red-600 opacity-20 transition-all duration-500 scale-90">
+                    </div>
 
-        <!-- Section Controls Hidden by Default -->
-        <div id="controls-section" class="hidden space-y-6">
+                    <button id="main-action-button"
+                        class="relative w-32 h-32 rounded-full bg-md-darkSurface dark:bg-black border-4 border-red-600 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95 transition-all">
+                        <span id="record-icon-dot" class="w-2 h-2 bg-red-600 rounded-full mb-1"></span>
+                        <span class="text-white font-bold tracking-tighter text-xl">REC</span>
+                        <span id="recording-dot"
+                            class="hidden absolute top-6 right-8 w-2 h-2 bg-red-500 rounded-full recording-pulse"></span>
+                    </button>
+                    <!-- Zone de feedback pour l'utilisateur -->
+                    <div id="shutter-feedback"
+                        class="absolute -bottom-6 w-full text-center text-[10px] font-bold text-md-primary h-4"></div>
+                </div>
 
-            <!-- Dynamic Presets Grid -->
-            <section id="presets-section" class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-md-outline dark:text-gray-400">Modes &
-                        Presets</h2>
+                <!-- Active Preset Display -->
+                <div class="flex flex-col items-center text-center space-y-2 py-4">
+                    <p class="text-xs text-md-outline uppercase font-bold tracking-widest">Mode Actuel</p>
+                    <div
+                        class="px-6 py-3 bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant rounded-2xl flex items-center space-x-3">
+                        <span id="active-preset-icon" class="material-symbols-outlined text-md-primary">videocam</span>
+                        <p id="status-preset" class="text-xl font-medium">Chargement...</p>
+                    </div>
+                </div>
+        </section>
+
+        <!-- Tab 2: Presets -->
+        <section id="tab-presets" class="tab-content hidden h-full p-4 space-y-6 overflow-y-auto">
+            <h2 class="text-xl font-medium px-2">Modes de Prise de Vue</h2>
+            <section id="presets-section" class="space-y-4">
+                <div class="flex items-center justify-between px-2">
+                    <h2 class="text-xs font-bold uppercase tracking-widest text-md-outline">Sélectionner un Preset</h2>
                     <span id="presets-feedback" class="text-xs text-md-primary italic"></span>
                 </div>
-                <div id="presets-container" class="grid grid-cols-2 gap-3">
-                    <!-- Presets will be injected as Material Chips/Buttons here -->
-                    <div class="animate-pulse bg-md-surfaceVariant h-10 rounded-full"></div>
-                    <div class="animate-pulse bg-md-surfaceVariant h-10 rounded-full"></div>
+                <div id="presets-container" class="grid grid-cols-1 gap-3">
+                    <!-- Les presets seront injectés ici sous forme de cartes larges -->
+                    <div class="animate-pulse bg-md-surfaceVariant h-16 rounded-2xl"></div>
                 </div>
             </section>
+        </section>
 
-            <!-- Settings Card -->
-            <section id="settings-section"
-                class="bg-md-surfaceVariant/50 dark:bg-md-darkSurfaceVariant/30 rounded-m3 p-5 space-y-4">
-                <h2 class="text-sm font-bold uppercase tracking-widest text-md-outline dark:text-gray-400 mb-2">
-                    Paramètres Rapides</h2>
-
-                <div id="settings-container" class="space-y-4">
-                    <!-- Timer Setting (Special) -->
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <span class="material-symbols-outlined text-md-primary">timer</span>
-                            <div>
-                                <p class="text-sm font-medium">Timer Enregistrement</p>
-                                <p class="text-xs text-md-outline">Arrêt auto après X sec</p>
-                            </div>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="timer-toggle-checkbox" class="sr-only peer">
-                            <div
-                                class="w-11 h-6 bg-md-outline peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-md-primary">
-                            </div>
-                        </label>
-                    </div>
-                    <div id="timer-input-area" class="pl-11 opacity-50 pointer-events-none transition-opacity">
-                        <input type="number" id="timed-duration" value="30" min="1"
-                            class="bg-transparent border-b border-md-outline w-16 text-center focus:border-md-primary outline-none text-sm">
-                        <span class="text-xs ml-2 uppercase text-md-outline">secondes</span>
-                    </div>
-
-                    <hr class="border-md-surfaceVariant dark:border-md-darkSurfaceVariant">
-
-                    <!-- Video Settings -->
-                    <div id="setting-item-2" class="setting-row flex items-center justify-between hidden">
+        <!-- Tab 2: Settings -->
+        <section id="tab-settings" class="tab-content hidden h-full p-4 space-y-6 overflow-y-auto">
+            <h2 class="text-xl font-medium px-2">Réglages Caméra</h2>
+            <div class="bg-md-surfaceVariant/30 dark:bg-md-darkSurfaceVariant/20 rounded-m3 p-2 space-y-1">
+                <div id="setting-item-2"
+                    class="flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 hidden border-b border-md-surfaceVariant/50">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">movie</span>
                         <span class="text-sm font-medium">Résolution</span>
-                        <select id="setting-2"
-                            class="bg-transparent text-sm text-md-primary font-bold focus:outline-none"></select>
                     </div>
-                    <div id="setting-item-3" class="setting-row flex items-center justify-between hidden">
+                    <select id="setting-2"
+                        class="bg-transparent text-sm font-bold text-md-primary outline-none"></select>
+                </div>
+                <div id="setting-item-3"
+                    class="flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 hidden border-b border-md-surfaceVariant/50">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">slow_motion_video</span>
                         <span class="text-sm font-medium">Images / sec</span>
-                        <select id="setting-3"
-                            class="bg-transparent text-sm text-md-primary font-bold focus:outline-none"></select>
                     </div>
-                    <div id="setting-item-121" class="setting-row flex items-center justify-between hidden">
+                    <select id="setting-3"
+                        class="bg-transparent text-sm font-bold text-md-primary outline-none"></select>
+                </div>
+                <div id="setting-item-121"
+                    class="flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 hidden border-b border-md-surfaceVariant/50">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">camera</span>
                         <span class="text-sm font-medium">Objectif</span>
-                        <select id="setting-121"
-                            class="bg-transparent text-sm text-md-primary font-bold focus:outline-none"></select>
                     </div>
+                    <select id="setting-121"
+                        class="bg-transparent text-sm font-bold text-md-primary outline-none"></select>
                 </div>
-            </section>
+                <div id="setting-item-135"
+                    class="flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 hidden border-b border-md-surfaceVariant/50">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">shutter_speed</span>
+                        <span class="text-sm font-medium">HyperSmooth</span>
+                    </div>
+                    <select id="setting-135"
+                        class="bg-transparent text-sm font-bold text-md-primary outline-none"></select>
+                </div>
+                <div id="setting-item-83"
+                    class="flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 hidden border-b border-md-surfaceVariant/50">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">location_on</span>
+                        <span class="text-sm font-medium">GPS</span>
+                    </div>
+                    <select id="setting-83"
+                        class="bg-transparent text-sm font-bold text-md-primary outline-none"></select>
+                </div>
+                <!-- Additional settings for Timelapse/TimeWarp -->
+                <div id="setting-item-5"
+                    class="flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 hidden border-b border-md-surfaceVariant/50">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">timelapse</span>
+                        <span class="text-sm font-medium">Intervalle Timelapse</span>
+                    </div>
+                    <select id="setting-5"
+                        class="bg-transparent text-sm font-bold text-md-primary outline-none"></select>
+                </div>
+                <div id="setting-item-111"
+                    class="flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 hidden">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">vibration</span>
+                        <span class="text-sm font-medium">Vitesse TimeWarp</span>
+                    </div>
+                    <select id="setting-111"
+                        class="bg-transparent text-sm font-bold text-md-primary outline-none"></select>
+                </div>
+            </div>
 
-            <!-- Detailed Status (Collapsible) -->
-            <section id="status-section"
-                class="bg-white dark:bg-gray-800/40 rounded-m3 p-5 border border-md-surfaceVariant dark:border-gray-700">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-md-outline">Détails Système</h2>
-                    <button id="toggle-status-button" class="text-xs text-md-primary font-bold">MODE RÉDUIT</button>
-                </div>
-                <div id="status-grid" class="grid grid-cols-2 gap-4 text-xs">
-                    <div class="space-y-1">
-                        <p class="text-md-outline uppercase font-bold text-[10px]">Stockage</p>
-                        <p id="status-sd-capacity" class="font-medium">-- GB total</p>
-                        <p id="status-video-remaining" class="text-md-primary font-bold">-- min restants</p>
+            <!-- Timer Special Setting -->
+            <div class="bg-md-surfaceVariant/30 dark:bg-md-darkSurfaceVariant/20 rounded-m3 p-4 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="material-symbols-outlined text-md-primary">timer</span>
+                        <span class="text-sm font-medium">Timer d'arrêt</span>
                     </div>
-                    <div class="space-y-1">
-                        <p class="text-md-outline uppercase font-bold text-[10px]">État encodage</p>
-                        <p id="status-encoding" class="font-medium">Repos</p>
-                        <p id="status-busy" class="italic opacity-70">Prêt</p>
-                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="timer-toggle-checkbox" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-md-outline rounded-full peer peer-checked:bg-md-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full">
+                        </div>
+                    </label>
                 </div>
-            </section>
+                <div id="timer-input-area" class="pl-11 flex items-center space-x-3 opacity-50">
+                    <input type="number" id="timed-duration" value="30"
+                        class="bg-transparent border-b border-md-outline w-16 text-center text-sm outline-none">
+                    <span class="text-xs text-md-outline">secondes</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Detailed Info -->
+        <section id="tab-info" class="tab-content hidden h-full p-4 space-y-6 overflow-y-auto">
+            <h2 class="text-xl font-medium px-2">Statuts Système</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-md-surfaceVariant/30 dark:bg-md-darkSurfaceVariant/20 p-4 rounded-2xl space-y-2">
+                    <span class="material-symbols-outlined text-md-primary">battery_full</span>
+                    <p class="text-xs text-md-outline uppercase font-bold">Batterie</p>
+                    <p id="status-battery" class="text-lg font-medium">--%</p>
+                </div>
+                <div class="bg-md-surfaceVariant/30 dark:bg-md-darkSurfaceVariant/20 p-4 rounded-2xl space-y-2">
+                    <span class="material-symbols-outlined text-md-primary">sd_storage</span>
+                    <p class="text-xs text-md-outline uppercase font-bold">Carte SD</p>
+                    <p id="status-sd-remaining" class="text-lg font-medium">-- min</p>
+                </div>
+                <div class="bg-md-surfaceVariant/30 dark:bg-md-darkSurfaceVariant/20 p-4 rounded-2xl space-y-2">
+                    <span class="material-symbols-outlined text-md-primary">thermometer</span>
+                    <p class="text-xs text-md-outline uppercase font-bold">Température</p>
+                    <p id="status-temp" class="text-lg font-medium">--°</p>
+                </div>
+                <div class="bg-md-surfaceVariant/30 dark:bg-md-darkSurfaceVariant/20 p-4 rounded-2xl space-y-2">
+                    <span class="material-symbols-outlined text-md-primary">sync_alt</span>
+                    <p class="text-xs text-md-outline uppercase font-bold">État</p>
+                    <p id="status-encoding" class="text-sm font-medium">Repos</p>
+                    <p id="status-busy" class="text-[10px] italic opacity-50">--</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Overlay de connexion (Material Modal style) -->
+        <div id="connection-overlay"
+            class="absolute inset-0 z-[100] bg-md-surface/95 dark:bg-md-darkSurface/95 flex flex-col items-center justify-center p-8 space-y-6 text-center">
+            <div class="relative">
+                <div class="w-24 h-24 rounded-full border-4 border-md-primary/20 border-t-md-primary animate-spin">
+                </div>
+                <span
+                    class="material-symbols-outlined absolute inset-0 flex items-center justify-center text-4xl text-md-primary">bluetooth</span>
+            </div>
+            <!-- Bouton fermer manuel -->
+            <button
+                onclick="document.getElementById('connection-overlay').classList.add('hidden'); document.getElementById('connection-overlay').style.display='none'"
+                class="absolute top-4 right-4 p-2 text-md-outline hover:text-md-primary transition-colors">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="space-y-2">
+                <p id="connection-status-text" class="text-lg font-medium text-md-primary">Prêt à se connecter</p>
+                <p id="error-message" class="text-sm text-md-error hidden"></p>
+                <p class="text-xs text-md-outline">Allumez votre GoPro et assurez-vous que le Bluetooth est activé.</p>
+            </div>
+            <button id="connect-button-overlay" onclick="connectGopro()"
+                class="bg-md-primary text-white px-8 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-all">
+                Connecter la GoPro
+            </button>
         </div>
     </main>
 
-    <!-- Bottom Navigation Bar (Hero Action) -->
+    <!-- Bottom Navigation Bar (Tabbed Nav from Image 3) -->
     <nav
-        class="bottom-nav fixed bottom-0 w-full px-6 py-4 border-t border-md-surfaceVariant dark:border-md-darkSurfaceVariant flex flex-col items-center space-y-4">
-
-        <!-- Shutter Feedback Flash -->
-        <div id="shutter-feedback" class="text-xs font-bold text-md-primary h-4 transition-all"></div>
-
-        <div class="flex items-center justify-center space-x-8 w-full">
-            <!-- Hilight Button -->
-            <button id="hilight-button" disabled
-                class="p-4 rounded-full bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant text-md-outline disabled:opacity-30 transition-all active:scale-95 shadow-lg">
-                <span class="material-symbols-outlined">stars</span>
-            </button>
-
-            <!-- Primary Action (Recording) -->
-            <div class="relative">
-                <!-- Outer ring for recording animation -->
-                <div id="record-ring"
-                    class="absolute -inset-2 rounded-full border-4 border-red-500 opacity-0 transition-opacity"></div>
-                <button id="main-action-button"
-                    class="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center shadow-xl active:scale-90 transition-transform">
-                    <div id="record-icon-inner" class="w-6 h-6 rounded-full bg-white transition-all"></div>
-                </button>
+        class="bottom-nav sticky bottom-0 w-full px-1 py-2 border-t border-md-surfaceVariant dark:border-md-darkSurfaceVariant flex justify-around items-center z-50">
+        <button onclick="switchTab('control')" id="nav-control"
+            class="nav-item flex flex-col items-center p-2 rounded-2xl text-md-primary">
+            <div class="px-4 py-1 rounded-full bg-md-primaryContainer">
+                <span class="material-symbols-outlined">videocam</span>
             </div>
-
-            <!-- Stop Action (Optional/Redundant with Main) -->
-            <button id="stop-record-button" disabled
-                class="p-4 rounded-full bg-md-surfaceVariant dark:bg-md-darkSurfaceVariant text-md-outline disabled:opacity-30 transition-all active:scale-95 shadow-lg">
-                <span class="material-symbols-outlined">stop_circle</span>
-            </button>
-        </div>
-
-        <!-- Safe margin for gesture nav -->
-        <div class="h-2"></div>
+            <span class="text-[9px] font-bold mt-1 uppercase tracking-tighter">REC</span>
+        </button>
+        <button onclick="switchTab('presets')" id="nav-presets"
+            class="nav-item flex flex-col items-center p-2 rounded-2xl text-md-outline">
+            <div class="px-4 py-1 rounded-full bg-transparent">
+                <span class="material-symbols-outlined">auto_awesome_motion</span>
+            </div>
+            <span class="text-[9px] font-bold mt-1 uppercase tracking-tighter">Modes</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings"
+            class="nav-item flex flex-col items-center p-2 rounded-2xl text-md-outline">
+            <div class="px-4 py-1 rounded-full bg-transparent">
+                <span class="material-symbols-outlined">tune</span>
+            </div>
+            <span class="text-[9px] font-bold mt-1 uppercase tracking-tighter">Réglages</span>
+        </button>
+        <button onclick="switchTab('info')" id="nav-info"
+            class="nav-item flex flex-col items-center p-2 rounded-2xl text-md-outline">
+            <div class="px-4 py-1 rounded-full bg-transparent">
+                <span class="material-symbols-outlined">analytics</span>
+            </div>
+            <span class="text-[9px] font-bold mt-1 uppercase tracking-tighter">Infos</span>
+        </button>
     </nav>
 
     <!-- Load Local scripts -->
@@ -325,62 +438,8 @@
     <script src="capacitor.js"></script>
 
     <script>
-        // UI Polish: Handle Timer UI state
-        const timerCheckbox = document.getElementById('timer-toggle-checkbox');
-        const timerArea = document.getElementById('timer-input-area');
-        if (timerCheckbox) {
-            timerCheckbox.addEventListener('change', (e) => {
-                timerArea.style.opacity = e.target.checked ? '1' : '0.5';
-                timerArea.style.pointerEvents = e.target.checked ? 'auto' : 'none';
-
-                // Trigger the actual logic in gopro_ble.js if needed
-                const oldToggle = document.getElementById('timer-toggle-button');
-                if (oldToggle) oldToggle.click();
-            });
-        }
-
-        // Connect status dot sync
-        function updateM3Dot(colorClass) {
-            const dot = document.getElementById('connection-status-dot');
-            dot.className = 'connection-dot ' + colorClass;
-        }
-
-        // Override existing updateConnectionStatus to use M3 Dot
-        const originalUpdateStatus = window.updateConnectionStatus;
-        window.updateConnectionStatus = function (text, colorClass) {
-            if (originalUpdateStatus) originalUpdateStatus(text, colorClass);
-            updateM3Dot(colorClass);
-            const statusText = document.getElementById('connection-status-text');
-            if (statusText) statusText.textContent = text;
-
-            const overlay = document.getElementById('connection-overlay');
-            if (text === 'Prêt') {
-                overlay.classList.add('hidden');
-            } else {
-                overlay.classList.remove('hidden');
-            }
-        };
-
-        // UI Feedback for Recording
-        function updateRecordingUI(isRecording) {
-            const mainBtn = document.getElementById('main-action-button');
-            const inner = document.getElementById('record-icon-inner');
-            const ring = document.getElementById('record-ring');
-
-            if (isRecording) {
-                inner.classList.replace('w-6', 'w-4');
-                inner.classList.replace('h-6', 'h-4');
-                inner.classList.replace('rounded-full', 'rounded-sm');
-                ring.classList.remove('opacity-0');
-                ring.classList.add('recording-pulse');
-            } else {
-                inner.classList.replace('w-4', 'w-6');
-                inner.classList.replace('h-4', 'h-6');
-                inner.classList.replace('rounded-sm', 'rounded-full');
-                ring.classList.add('opacity-0');
-                ring.classList.remove('recording-pulse');
-            }
-        }
+        // Initial Tab setup
+        if (typeof switchTab === 'function') switchTab('control');
     </script>
 </body>
 
