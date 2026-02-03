@@ -33,36 +33,8 @@ fun StatusScreen(state: CameraUiState) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Grille Batterie & Température
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Carte Batterie
-            StatusGridCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.BatteryFull, // Transformé en BatteryHalf dans la logique d'icône si besoin
-                iconColor = PrimaryTeal,
-                iconRotation = -90f,
-                badgeText = if (state.batteryLevel < 20) "CRITIQUE" else "NOMINAL",
-                badgeColor = if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal, // Red / Teal
-                badgeBg = if (state.batteryLevel < 20) Color(0xFFEF4444).copy(alpha = 0.2f) else PrimaryTeal.copy(alpha = 0.2f),
-                mainValue = "${state.batteryLevel}%",
-                label = "BATTERIE"
-            )
-
-            // Carte Température (Microchip icon replacement by Memory/DeveloperBoard default)
-            StatusGridCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.DeviceThermostat,
-                iconColor = PrimaryTeal,
-                badgeText = "HERO 11 Mini", // Hardcoded ou dynamique si on avait le modèle
-                badgeColor = Color.LightGray,
-                badgeBg = Color.White.copy(alpha = 0.1f),
-                mainValue = state.tempStatus,
-                label = "TEMPÉRATURE"
-            )
-        }
+        // Section Batterie (Full Width)
+        BatterySection(state)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -79,72 +51,69 @@ fun StatusScreen(state: CameraUiState) {
 }
 
 @Composable
-fun StatusGridCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    iconColor: Color,
-    iconRotation: Float = 0f,
-    badgeText: String,
-    badgeColor: Color,
-    badgeBg: Color,
-    mainValue: String,
-    label: String
-) {
+fun BatterySection(state: CameraUiState) {
     Surface(
-        modifier = modifier.height(144.dp),
         color = AppCard,
         shape = RoundedCornerShape(16.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
     ) {
-        Column(
-            modifier = Modifier
-                .padding(20.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Top Row
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text(
+                text = "ALIMENTATION",
+                color = Color.Gray,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.Bottom
             ) {
-                Icon(
-                    icon, // Pas de rotation simple modifier dans Icon, on utilise Modifier.rotate si besoin mais Icon n'a pas ça direct sans dépendance extra parfois. 
-                    // Utilisons un Box pour rotater si besoin.
-                    contentDescription = null, 
-                    tint = iconColor,
-                    modifier = Modifier.size(24.dp)
-                )
-                
-                Surface(
-                    color = badgeBg,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = badgeText,
-                        color = badgeColor,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-            }
-            
-            // Bottom Content
-            Column {
                 Text(
-                    text = mainValue,
+                    text = "${state.batteryLevel}%",
                     color = Color.White,
-                    fontSize = 30.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = label,
-                    color = Color.Gray,
+                    text = if (state.batteryLevel < 20) "CRITIQUE" else "NOMINAL",
+                    color = if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                    fontWeight = FontWeight.Bold
                 )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Progress Bar Batterie
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(state.batteryLevel / 100f)
+                        .background(if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                 Icon(Icons.Default.BatteryFull, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(12.dp))
+                 Spacer(modifier = Modifier.width(4.dp))
+                 Text(text = "INTERNE", color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -237,6 +206,9 @@ fun SystemInfoList(state: CameraUiState) {
         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
     ) {
         Column {
+            // INFO CRITIQUE : Modèle Camera (Badge style dans la liste ? Non simple texte pour l'instant)
+            InfoRow(state.cameraName, state.tempStatus, Icons.Default.DeviceThermostat) // Température ici !
+            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("État Système", if (state.isRecording) "ENREGISTREMENT" else "PRÊT", if (state.isRecording) Icons.Default.RadioButtonChecked else Icons.Default.CheckCircle)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Capacité SD", state.sdCapacityFormatted, Icons.Default.SdStorage)
@@ -244,10 +216,6 @@ fun SystemInfoList(state: CameraUiState) {
             InfoRow("Temps Restant", state.videoRemainingTime, Icons.Default.Timer)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Preset Actif", "ID ${state.currentPresetId}", Icons.Default.Tune)
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            InfoRow("Firmware", state.firmwareVersion, Icons.Default.Code)
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            InfoRow("Serial", state.serialNumber, Icons.Default.Fingerprint)
         }
     }
 }

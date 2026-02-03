@@ -66,10 +66,11 @@ class MainActivity : ComponentActivity() {
                             val cmdId = data[0].toInt() and 0xFF
                             if (cmdId == GoProConstants.CMD_GET_HARDWARE_INFO) {
                                 val info = GoProStatusParser.parseQueryResponse(data)
+                                val modelName = info[1] as? String ?: "HERO Device" // ID 1 = Model Name
                                 val serial = info[3] as? String ?: "Unknown" // ID 3 = Serial
                                 val version = info[6] as? String ?: "v0.0"   // ID 6 = Version
-                                viewModel.updateHardwareInfo(serial, version)
-                                Log.d("MainActivity", "ℹ️ Hardware Info: Serial=$serial, Ver=$version")
+                                viewModel.updateHardwareInfo(serial, version, modelName)
+                                Log.d("MainActivity", "ℹ️ Hardware Info: Model=$modelName, Serial=$serial, Ver=$version")
                             }
                         }
                         

@@ -41,7 +41,8 @@ data class CameraUiState(
     val tempStatus: String = "OK",
     
     val firmwareVersion: String = "v1.40",
-    val serialNumber: String = "C34413..."
+    val serialNumber: String = "C34413...",
+    val cameraName: String = "HERO 11 Mini" // Valeur par défaut
 )
 
 
@@ -173,8 +174,8 @@ class GoProViewModel : ViewModel() {
         _uiState.update { it.copy(currentPresetId = id) }
     }
 
-    fun updateHardwareInfo(serial: String, version: String) {
-        _uiState.update { it.copy(serialNumber = serial, firmwareVersion = version) }
+    fun updateHardwareInfo(serial: String, version: String, name: String) {
+        _uiState.update { it.copy(serialNumber = serial, firmwareVersion = version, cameraName = name) }
     }
 
     fun updateSdRemaining(kb: Long) {
