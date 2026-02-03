@@ -62,6 +62,34 @@ class GoProStatusParser {
             // Offset : 2 pour réponse synchrone (ID + Status), 1 pour notification asynchrone
             var index = if (queryId < 0x80) 2 else 1
 
+            // ⚠️ Protection Spécifique 0x93 (Similaire JS gopro_ble.js)
+            // Si c'est un Status Async (0x93), on doit être très strict pour éviter les paquets corrompus (ex: len=54 dans payload de 12)
+            if (queryId == 0x93) {
+                // On pré-valide ou on parse avec politique "Tout ou Rien"
+                val tempResult = mutableMapOf<Int, Any>()
+                var tempIndex = index
+                while (tempIndex + 1 < data.size) {
+                    val id = data[tempIndex++].toInt() and 0xFF
+                    val length = data[tempIndex++].toInt() and 0xFF
+                    
+                    if (length == 0) continue
+
+                    if (tempIndex + length > data.size) {
+                        Log.w(TAG, "⚠️ 0x93 Mal formé (ID=$id, Len=$length, Size=${data.size}) -> Paquet ignoré.")
+                        return emptyMap() // On jette tout le paquet corrompu
+                    }
+                    
+                    val value = if (length == 1) {
+                         data[tempIndex].toInt() and 0xFF
+                    } else {
+                         data.copyOfRange(tempIndex, tempIndex + length)
+                    }
+                    tempResult[id] = value
+                    tempIndex += length
+                }
+                return tempResult
+            }
+
             try {
                 // On boucle tant qu'il reste au moins un ID (1 byte) et une Longueur (1 byte)
                 while (index + 1 < data.size) {
