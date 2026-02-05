@@ -9,7 +9,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.ximun.gopropro"
+        applicationId = "com.ximun.gopropro.v2"
         minSdk = 26
         targetSdk = 34
         versionCode = 2
