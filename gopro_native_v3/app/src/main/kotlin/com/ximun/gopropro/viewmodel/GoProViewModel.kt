@@ -40,7 +40,6 @@ data class CameraUiState(
     val storagePercent: Int = 0, 
     val sdCapacityFormatted: String = "N/A",
     val videoRemainingTime: String = "N/A", 
-    val videoRemainingTime: String = "N/A", 
     val tempStatus: String = "OK",
     val isOverheating: Boolean = false,
     
