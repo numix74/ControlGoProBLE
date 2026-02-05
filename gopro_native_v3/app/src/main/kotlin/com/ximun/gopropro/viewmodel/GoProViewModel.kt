@@ -17,6 +17,8 @@ data class CameraUiState(
     val initialTimerValue: Int = 15,
     val currentTimerValue: Int = 15,
     val batteryLevel: Int = 0,
+    val batteryBars: Int = 0,
+    val isCharging: Boolean = false,
     val storageSpace: String = "N/A",
     val currentPresetName: String = "Vidéo",
     val displayTime: String = "00:00",
@@ -38,7 +40,13 @@ data class CameraUiState(
     val storagePercent: Int = 0, 
     val sdCapacityFormatted: String = "N/A",
     val videoRemainingTime: String = "N/A", 
+    val videoRemainingTime: String = "N/A", 
     val tempStatus: String = "OK",
+    val isOverheating: Boolean = false,
+    
+    val photosRemaining: Int = 0,
+    val videosCount: Int = 0,
+    val sdStatusLabel: String = "OK", // Mapping ID 33
     
     val firmwareVersion: String = "v1.40",
     val serialNumber: String = "C34413...",
@@ -60,10 +68,15 @@ class GoProViewModel : ViewModel() {
     fun updateBattery(level: Int) {
         _uiState.update { it.copy(batteryLevel = level) }
     }
+
+    fun updateBatteryBars(bars: Int) {
+        // Selon doc OpenGoPro : 0=Zero, 1=One, 2=Two, 3=Three, 4=Charging
+        _uiState.update { it.copy(batteryBars = bars, isCharging = (bars == 4)) }
+    }
     
     fun updateTempStatus(isHot: Boolean, isCold: Boolean) {
         val status = if (isHot) "HOT" else if (isCold) "COLD" else "OK"
-        _uiState.update { it.copy(tempStatus = status) }
+        _uiState.update { it.copy(tempStatus = status, isOverheating = isHot) }
     }
 
     fun updateSettings(newSettings: Map<Int, Int>) {
@@ -207,6 +220,53 @@ class GoProViewModel : ViewModel() {
     fun updateVideoRemaining(seconds: Int) {
         val t = formatDuration(seconds)
         _uiState.update { it.copy(videoRemainingSec = seconds, videoRemainingTime = t) }
+    }
+
+    fun updatePhotosRemaining(count: Int) {
+        _uiState.update { it.copy(photosRemaining = count) }
+    }
+
+    fun updateVideosCount(count: Int) {
+        _uiState.update { it.copy(videosCount = count) }
+    }
+
+    fun updateSdStatus(code: Int) {
+        val label = when (code) {
+            0 -> "OK"
+            1 -> "CARTE PLEINE"
+            2 -> "ABSENTE"
+            3 -> "ERREUR FORMAT"
+            4 -> "OCCUPÉE"
+            8 -> "CHANGÉE"
+            else -> "ERREUR ($code)"
+        }
+        _uiState.update { it.copy(sdStatusLabel = label) }
+    }
+
+    // --- HELPERS DE MAPPING ---
+
+    fun getLensLabel(id: Int): String {
+        return when (id) {
+            0 -> "Large"
+            3 -> "SuperView"
+            4 -> "Linéaire"
+            10 -> "HyperView"
+            else -> "Standard"
+        }
+    }
+
+    fun getRatioLabel(id: Int): String {
+        return when (id) {
+            0 -> "4:3"
+            1 -> "16:9"
+            2 -> "8:7"
+            4 -> "9:16"
+            else -> "Auto"
+        }
+    }
+
+    fun getGpsLabel(id: Int): String {
+        return if (id == 1) "ACTIF" else "DÉSACTIVÉ"
     }
 
     private fun formatSize(kb: Long): String {

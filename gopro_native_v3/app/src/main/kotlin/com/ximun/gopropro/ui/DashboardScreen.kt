@@ -28,16 +28,20 @@ val HilightYellow = Color(0xFFCA8A04)
 
 @Composable
 fun DashboardLayout(
-    state: CameraUiState,
+    viewModel: com.ximun.gopropro.viewmodel.GoProViewModel,
     onRecordToggle: () -> Unit,
     onHilight: () -> Unit,
     onDisconnect: () -> Unit,
+    onSleep: () -> Unit,
+    onReboot: () -> Unit,
+    onSyncTime: () -> Unit,
     onToggleTimerMode: () -> Unit,
     onAdjustTimer: (Int) -> Unit,
     onTabSelected: (Int) -> Unit,
     onUpdateSetting: (Int, Int) -> Unit,
     onLoadPreset: (Int) -> Unit
 ) {
+    val state by viewModel.uiState.collectAsState()
     Scaffold(
         bottomBar = {
             DashboardNavBar(selectedTab = state.selectedTab, onTabSelected = onTabSelected)
@@ -46,7 +50,7 @@ fun DashboardLayout(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (state.selectedTab) {
-                0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onToggleTimerMode, onAdjustTimer)
+                0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onSleep, onReboot, onSyncTime, onToggleTimerMode, onAdjustTimer)
                 1 -> SettingsScreen(state, onUpdateSetting)
                 2 -> PresetsScreen(state, onLoadPreset)
                 3 -> StatusScreen(state)
@@ -61,6 +65,9 @@ fun DashboardScreen(
     onRecordToggle: () -> Unit,
     onHilight: () -> Unit,
     onDisconnect: () -> Unit,
+    onSleep: () -> Unit,
+    onReboot: () -> Unit,
+    onSyncTime: () -> Unit,
     onToggleTimerMode: () -> Unit,
     onAdjustTimer: (Int) -> Unit
 ) {
@@ -76,8 +83,13 @@ fun DashboardScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             headerSection("STUDIO PRO", "LIAISON DIRECTE")
-            IconButton(onClick = onDisconnect) {
-                Icon(Icons.Default.Settings, null, tint = Color.Gray)
+            Row {
+                IconButton(onClick = onSleep) {
+                    Icon(Icons.Default.PowerSettingsNew, "Veille", tint = Color.LightGray)
+                }
+                IconButton(onClick = onDisconnect) {
+                    Icon(Icons.Default.LinkOff, "Déconnexion", tint = Color.Gray)
+                }
             }
         }
 
@@ -179,6 +191,57 @@ fun DashboardScreen(
                 enabled = state.isRecording,
                 onClick = onHilight
             )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Actions Rapides
+        Text("ACTIONS RAPIDES", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            QuickActionButton(
+                modifier = Modifier.weight(1f),
+                title = "Sync Horloge",
+                icon = Icons.Default.Sync,
+                onClick = onSyncTime
+            )
+            QuickActionButton(
+                modifier = Modifier.weight(1f),
+                title = "Redémarrer",
+                icon = Icons.Default.RestartAlt,
+                onClick = onReboot
+            )
+        }
+    }
+}
+
+@Composable
+fun QuickActionButton(
+    modifier: Modifier,
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .height(56.dp)
+            .clickable { onClick() },
+        color = AppCard.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

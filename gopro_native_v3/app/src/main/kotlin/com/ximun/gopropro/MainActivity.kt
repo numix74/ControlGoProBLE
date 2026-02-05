@@ -66,11 +66,20 @@ class MainActivity : ComponentActivity() {
                             val cmdId = data[0].toInt() and 0xFF
                             if (cmdId == GoProConstants.CMD_GET_HARDWARE_INFO) {
                                 val info = GoProStatusParser.parseQueryResponse(data)
-                                val modelName = info[1] as? String ?: "HERO Device" // ID 1 = Model Name
-                                val serial = info[3] as? String ?: "Unknown" // ID 3 = Serial
-                                val version = info[6] as? String ?: "v0.0"   // ID 6 = Version
+                                // Selon le document : model_number(1), model_name(2), firmware_version(6)
+                                // ID 3 reste le Serial pour la plupart des modèles
+                                val modelName = (info[2] as? String) ?: (info[1] as? String) ?: "HERO Device"
+                                val serial = info[3] as? String ?: "Unknown"
+                                val version = info[6] as? String ?: "v0.0"
                                 viewModel.updateHardwareInfo(serial, version, modelName)
                                 Log.d("MainActivity", "ℹ️ Hardware Info: Model=$modelName, Serial=$serial, Ver=$version")
+                            }
+                            
+                            if (cmdId == GoProConstants.CMD_GET_VERSION) {
+                                // Format major/minor (2 octets après l'ID)
+                                val major = if (data.size > 2) data[2].toInt() else 0
+                                val minor = if (data.size > 3) data[3].toInt() else 0
+                                Log.d("MainActivity", "🌐 OpenGoPro API Version : $major.$minor")
                             }
                         }
                         
@@ -141,6 +150,7 @@ class MainActivity : ComponentActivity() {
                                     updates.forEach { (id, value) ->
                                         when (id) {
                                             GoProConstants.STATUS_ID_BATTERY -> viewModel.updateBattery(convertToInt(value))
+                                            GoProConstants.STATUS_ID_BATTERY_BARS -> viewModel.updateBatteryBars(convertToInt(value))
                                             GoProConstants.STATUS_ID_RECORDING -> viewModel.updateRecording(convertToInt(value) == 1)
                                             
                                             // 64-bit Values
@@ -149,6 +159,12 @@ class MainActivity : ComponentActivity() {
                                             
                                             // 32-bit Values
                                             GoProConstants.STATUS_ID_VIDEO_REMAINING -> viewModel.updateVideoRemaining(convertToInt(value))
+                                            GoProConstants.STATUS_ID_PHOTOS_REMAINING -> viewModel.updatePhotosRemaining(convertToInt(value))
+                                            GoProConstants.STATUS_ID_VIDEOS_COUNT -> viewModel.updateVideosCount(convertToInt(value))
+                                            
+                                            // Enums / Bools
+                                            GoProConstants.STATUS_ID_SD_STATUS -> viewModel.updateSdStatus(convertToInt(value))
+                                            GoProConstants.STATUS_ID_OVERHEATING -> viewModel.updateTempStatus(convertToInt(value) == 1, false)
                                             
                                             GoProConstants.STATUS_ID_ACTIVE_PRESET -> {
                                                 val v = convertToInt(value)
@@ -213,7 +229,7 @@ class MainActivity : ComponentActivity() {
                     ConnectionScreen(isConnected = false, onConnect = { checkPermissionsAndScan() })
                 } else {
                     DashboardLayout(
-                        state = state,
+                        viewModel = viewModel,
                         onRecordToggle = { handleRecordToggle() },
                         onHilight = {
                             bleManager.sendGoProCommand(
@@ -222,6 +238,19 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         onDisconnect = { bleManager.disconnect().enqueue() },
+                        onSleep = {
+                            bleManager.sendGoProCommand(
+                                GoProConstants.COMMAND_CHAR_UUID,
+                                byteArrayOf(GoProConstants.CMD_SLEEP.toByte())
+                            )
+                        },
+                        onReboot = {
+                            bleManager.sendGoProCommand(
+                                GoProConstants.COMMAND_CHAR_UUID,
+                                byteArrayOf(GoProConstants.CMD_REBOOT.toByte())
+                            )
+                        },
+                        onSyncTime = { syncDateTime() },
                         onToggleTimerMode = { viewModel.toggleTimerMode() },
                         onAdjustTimer = { delta -> viewModel.adjustTimer(delta) },
                         onTabSelected = { index -> viewModel.setTab(index) },
@@ -237,6 +266,31 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun syncDateTime() {
+        val now = java.util.Calendar.getInstance()
+        val year = now.get(java.util.Calendar.YEAR)
+        val month = (now.get(java.util.Calendar.MONTH) + 1).toByte()
+        val day = now.get(java.util.Calendar.DAY_OF_MONTH).toByte()
+        val hour = now.get(java.util.Calendar.HOUR_OF_DAY).toByte()
+        val min = now.get(java.util.Calendar.MINUTE).toByte()
+        val sec = now.get(java.util.Calendar.SECOND).toByte()
+
+        val payload = byteArrayOf(
+            GoProConstants.CMD_SET_DATE.toByte(), // 0x0D
+            7, // Longueur
+            (year shr 8).toByte(),
+            (year and 0xFF).toByte(),
+            month,
+            day,
+            hour,
+            min,
+            sec
+        )
+
+        bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, payload)
+        Log.d("MainActivity", "🕒 Horloge synchronisée : $day/$month/$year $hour:$min:$sec")
     }
 
     private fun startKeepAlive() {
@@ -271,11 +325,16 @@ class MainActivity : ComponentActivity() {
             val statusIds = byteArrayOf(
                 GoProConstants.STATUS_ID_RECORDING.toByte(),
                 GoProConstants.STATUS_ID_BATTERY.toByte(),
-                GoProConstants.STATUS_ID_STORAGE.toByte(),
-                GoProConstants.STATUS_ID_SD_CAPACITY.toByte(),
-                GoProConstants.STATUS_ID_VIDEO_REMAINING.toByte(),
+                GoProConstants.STATUS_ID_BATTERY_BARS.toByte(), // ID 2
+                GoProConstants.STATUS_ID_STORAGE.toByte(), // ID 54
+                GoProConstants.STATUS_ID_SD_CAPACITY.toByte(), // ID 117
+                GoProConstants.STATUS_ID_SD_STATUS.toByte(), // ID 33
+                GoProConstants.STATUS_ID_PHOTOS_REMAINING.toByte(), // ID 38
+                GoProConstants.STATUS_ID_VIDEOS_COUNT.toByte(), // ID 39
+                GoProConstants.STATUS_ID_VIDEO_REMAINING.toByte(), // ID 35
                 GoProConstants.STATUS_ID_ACTIVE_PRESET.toByte(),
-                GoProConstants.STATUS_ID_BUSY.toByte()
+                GoProConstants.STATUS_ID_BUSY.toByte(),
+                GoProConstants.STATUS_ID_OVERHEATING.toByte() // ID 6
             )
             
             // IDs des settings
@@ -290,7 +349,16 @@ class MainActivity : ComponentActivity() {
                 GoProConstants.SETTING_ID_SHARPNESS,
                 GoProConstants.SETTING_ID_BIT_RATE,
                 GoProConstants.SETTING_ID_BIT_DEPTH,
-                GoProConstants.SETTING_ID_VIDEO_PROFILE
+                GoProConstants.SETTING_ID_VIDEO_PROFILE,
+                GoProConstants.SETTING_ID_ASPECT_RATIO,
+                GoProConstants.SETTING_ID_PHOTO_LENS,
+                GoProConstants.SETTING_ID_TIMELAPSE_RATE,
+                GoProConstants.SETTING_ID_PHOTO_TIMELAPSE_RATE,
+                GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
+                GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
+                GoProConstants.SETTING_ID_GPS,
+                GoProConstants.SETTING_ID_LCD_BRIGHTNESS,
+                GoProConstants.SETTING_ID_LED
             )
             
             Log.d("MainActivity", "📡 1. Register Status Updates (0x53)")

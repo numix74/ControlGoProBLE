@@ -56,6 +56,7 @@ fun SettingsScreen(
         val videoSettings = listOf(
             GoProConstants.SETTING_ID_RESOLUTION,
             GoProConstants.SETTING_ID_FPS,
+            GoProConstants.SETTING_ID_ASPECT_RATIO,
             GoProConstants.SETTING_ID_LENS,
             GoProConstants.SETTING_ID_HYPERSMOOTH,
             GoProConstants.SETTING_ID_COLOR,
@@ -64,17 +65,46 @@ fun SettingsScreen(
         )
 
         videoSettings.forEach { settingId ->
-            val caps = capabilities[settingId]
-            if (!caps.isNullOrEmpty()) {
-                SettingDropdown(
-                    label = GoProSettingsMappings.getSettingName(settingId),
-                    settingId = settingId,
-                    currentValue = settings[settingId],
-                    capabilities = caps,
-                    onValueChange = { value -> onUpdateSetting(settingId, value) }
-                )
-            }
+            RenderSetting(settingId, capabilities, settings, onUpdateSetting)
         }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = "Paramètres Système",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        val systemSettings = listOf(
+            GoProConstants.SETTING_ID_GPS,
+            GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
+            GoProConstants.SETTING_ID_LED,
+            GoProConstants.SETTING_ID_LCD_BRIGHTNESS
+        )
+
+        systemSettings.forEach { settingId ->
+            RenderSetting(settingId, capabilities, settings, onUpdateSetting)
+        }
+    }
+}
+
+@Composable
+fun RenderSetting(
+    settingId: Int,
+    capabilities: Map<Int, List<Int>>,
+    settings: Map<Int, Int>,
+    onUpdateSetting: (Int, Int) -> Unit
+) {
+    val caps = capabilities[settingId]
+    if (!caps.isNullOrEmpty()) {
+        SettingDropdown(
+            label = GoProSettingsMappings.getSettingName(settingId),
+            settingId = settingId,
+            currentValue = settings[settingId],
+            capabilities = caps,
+            onValueChange = { value -> onUpdateSetting(settingId, value) }
+        )
     }
 }
 

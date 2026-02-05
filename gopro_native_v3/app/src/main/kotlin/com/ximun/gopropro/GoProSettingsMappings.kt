@@ -168,6 +168,41 @@ object GoProSettingsMappings {
         11 to "1/100",
         12 to "1/200"
     )
+
+    // Aspect Ratio (Setting ID 108)
+    private val ASPECT_RATIO_LABELS = mapOf(
+        0 to "4:3",
+        1 to "16:9",
+        2 to "8:7",
+        4 to "9:16",
+        5 to "21:9",
+        6 to "1:1"
+    )
+
+    // GPS (Setting ID 83)
+    private val GPS_LABELS = mapOf(
+        0 to "Désactivé",
+        1 to "Activé"
+    )
+
+    // Auto Power Down (Setting ID 59)
+    private val AUTO_POWER_DOWN_LABELS = mapOf(
+        0 to "Jamais",
+        1 to "1 Min",
+        4 to "5 Min",
+        6 to "15 Min",
+        7 to "30 Min"
+    )
+
+    // LED (Setting ID 91)
+    private val LED_LABELS = mapOf(
+        0 to "Off",
+        1 to "On",
+        2 to "All On",
+        4 to "All Off",
+        5 to "Front Off Only",
+        100 to "Back Only"
+    )
     
     /**
      * Retourne le label pour une valeur donnée d'un setting
@@ -189,6 +224,10 @@ object GoProSettingsMappings {
             31 -> PHOTO_INTERVAL_LABELS
             85 -> EV_COMP_LABELS
             73 -> SHUTTER_LABELS
+            108 -> ASPECT_RATIO_LABELS
+            83 -> GPS_LABELS
+            59 -> AUTO_POWER_DOWN_LABELS
+            91 -> LED_LABELS
             else -> null
         }
         
@@ -225,6 +264,10 @@ object GoProSettingsMappings {
             31 -> "Intervalle photo"
             85 -> "Compensation EV"
             73 -> "Vitesse d'obturation"
+            108 -> "Ratio d'aspect"
+            83 -> "GPS"
+            59 -> "Auto Power Down"
+            91 -> "LEDs"
             else -> "Setting $settingId"
         }
     }

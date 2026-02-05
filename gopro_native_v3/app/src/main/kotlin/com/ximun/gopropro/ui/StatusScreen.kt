@@ -80,8 +80,8 @@ fun BatterySection(state: CameraUiState) {
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = if (state.batteryLevel < 20) "CRITIQUE" else "NOMINAL",
-                    color = if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal,
+                    text = if (state.isCharging) "EN CHARGE" else if (state.batteryLevel < 20) "CRITIQUE" else "NOMINAL",
+                    color = if (state.isCharging) PrimaryTeal else if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -101,7 +101,7 @@ fun BatterySection(state: CameraUiState) {
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth(state.batteryLevel / 100f)
-                        .background(if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal)
+                        .background(if (state.isCharging) PrimaryTeal else if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal)
                 )
             }
             
@@ -111,9 +111,9 @@ fun BatterySection(state: CameraUiState) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                 Icon(Icons.Default.BatteryFull, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(12.dp))
+                 Icon(if (state.isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryFull, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(12.dp))
                  Spacer(modifier = Modifier.width(4.dp))
-                 Text(text = "INTERNE", color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                 Text(text = if (state.isCharging) "SECTEUR" else "INTERNE", color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -188,6 +188,12 @@ fun StorageSection(state: CameraUiState) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
+                    text = "CARTE ${state.sdStatusLabel}",
+                    color = if (state.sdStatusLabel != "OK") Color(0xFFEF4444) else Color.Gray,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
                     text = "SD CARD (V30)",
                     color = Color.Gray,
                     fontSize = 9.sp,
@@ -206,10 +212,21 @@ fun SystemInfoList(state: CameraUiState) {
         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
     ) {
         Column {
-            // INFO CRITIQUE : Modèle Camera (Badge style dans la liste ? Non simple texte pour l'instant)
-            InfoRow(state.cameraName, state.tempStatus, Icons.Default.DeviceThermostat) // Température ici !
+            // INFO CRITIQUE : Modèle Camera
+            InfoRow(state.cameraName, state.tempStatus, Icons.Default.DeviceThermostat)
+            if (state.isOverheating) {
+                 InfoRow("SURCHAUFFE", "DANGER", Icons.Default.Warning)
+            }
+            if (state.isCharging) {
+                InfoRow("ALIMENTATION", "EN CHARGE", Icons.Default.Power)
+            }
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+
             InfoRow("État Système", if (state.isRecording) "ENREGISTREMENT" else "PRÊT", if (state.isRecording) Icons.Default.RadioButtonChecked else Icons.Default.CheckCircle)
+            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+            InfoRow("Photos Restantes", "${state.photosRemaining}", Icons.Default.PhotoCamera)
+            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+            InfoRow("Vidéis sur Carte", "${state.videosCount}", Icons.Default.VideoLibrary)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Capacité SD", state.sdCapacityFormatted, Icons.Default.SdStorage)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))

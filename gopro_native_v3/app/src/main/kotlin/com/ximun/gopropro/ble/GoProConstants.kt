@@ -16,11 +16,16 @@ object GoProConstants {
 
     // Commands
     const val CMD_GET_HARDWARE_INFO = 0x3C
+    const val CMD_GET_VERSION = 0x51
     const val CMD_SET_SHUTTER = 0x01
     const val CMD_HILIGHT = 0x18
     const val CMD_LOAD_PRESET = 0x40
     const val CMD_KEEP_ALIVE = 0x5B
     const val CMD_KEEP_ALIVE_VAL = 0x42
+    const val CMD_SLEEP = 0x05
+    const val CMD_REBOOT = 0x11
+    const val CMD_SET_DATE = 0x0D
+    const val CMD_CAMERA_CONTROL = 0xF1 // Commande via Protobuf/Global
 
     // Query IDs (Corrected for HERO 9/10/11/12)
     const val QRY_REGISTER_SETTINGS_UPDATES = 0x52
@@ -38,22 +43,38 @@ object GoProConstants {
     // Setting IDs
     const val SETTING_ID_RESOLUTION = 2
     const val SETTING_ID_FPS = 3
+    const val SETTING_ID_ASPECT_RATIO = 108
     const val SETTING_ID_LENS = 121
+    const val SETTING_ID_PHOTO_LENS = 122
     const val SETTING_ID_HYPERSMOOTH = 135
     const val SETTING_ID_COLOR = 134
-    const val SETTING_ID_ISO_MAX = 122
+    const val SETTING_ID_ISO_MAX = 13 // Wait, checking doc image... Oh, Doc image says setting ID for Photos is 122. ISO MAX is usually elsewhere. I'll stick to the image for now.
     const val SETTING_ID_WHITE_BALANCE = 124
     const val SETTING_ID_SHARPNESS = 139
     const val SETTING_ID_BIT_RATE = 144
     const val SETTING_ID_BIT_DEPTH = 145
     const val SETTING_ID_VIDEO_PROFILE = 102
+    
+    // NEW from doc image
+    const val SETTING_ID_TIMELAPSE_RATE = 5
+    const val SETTING_ID_PHOTO_TIMELAPSE_RATE = 30
+    const val SETTING_ID_NIGHT_LAPSE_RATE = 32
+    const val SETTING_ID_AUTO_POWER_DOWN = 59
+    const val SETTING_ID_GPS = 83
+    const val SETTING_ID_LCD_BRIGHTNESS = 88
+    const val SETTING_ID_LED = 91
 
     // Status IDs
     const val STATUS_ID_RECORDING = 10
     const val STATUS_ID_BATTERY = 70
+    const val STATUS_ID_BATTERY_BARS = 2 // Internal Battery Bars / Charging state
     const val STATUS_ID_STORAGE = 54 // SD Remaining (KB) - UInt64
     const val STATUS_ID_SD_CAPACITY = 117 // SD Capacity (KB) - UInt64
+    const val STATUS_ID_SD_STATUS = 33 // SD State (OK, Full, Missing...)
+    const val STATUS_ID_PHOTOS_REMAINING = 38 // Remaining Photos
+    const val STATUS_ID_VIDEOS_COUNT = 39 // Videos on card
     const val STATUS_ID_VIDEO_REMAINING = 35 // Video Remaining (Sec) - UInt32
     const val STATUS_ID_ACTIVE_PRESET = 97
     const val STATUS_ID_BUSY = 8
+    const val STATUS_ID_OVERHEATING = 6
 }
