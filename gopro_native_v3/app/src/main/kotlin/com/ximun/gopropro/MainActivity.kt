@@ -297,9 +297,9 @@ class MainActivity : ComponentActivity() {
             while (true) {
                 if (viewModel.uiState.value.isConnected) {
                     // Les GoPro HERO nécessitent un Keep Alive toutes les ~3s
-                    // On utilise le Keep Alive spécifique (0x5B, 1, 0x42) sur la caractéristique SETTINGS
+                    // IMPORTANT : Doit être envoyé sur COMMAND_CHAR_UUID (b5f90072)
                     bleManager.sendGoProCommand(
-                        GoProConstants.SETTINGS_CHAR_UUID,
+                        GoProConstants.COMMAND_CHAR_UUID,
                         byteArrayOf(GoProConstants.CMD_KEEP_ALIVE.toByte(), 1, GoProConstants.CMD_KEEP_ALIVE_VAL.toByte())
                     )
                 }
@@ -398,7 +398,8 @@ class MainActivity : ComponentActivity() {
                     GoProConstants.QUERY_CHAR_UUID,
                     byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte(), settingId.toByte())
                 )
-                delay(300) // 300ms entre chaque capacité pour une stabilité maximale
+                // ESSENTIEL : Délai plus long (400ms) pour ne pas saturer la HERO 11 Mini
+                delay(400)
             }
             
             Log.d("MainActivity", "✅ subscribeToUpdates TERMINÉ")
