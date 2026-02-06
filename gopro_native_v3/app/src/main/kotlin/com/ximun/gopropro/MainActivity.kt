@@ -237,15 +237,16 @@ class MainActivity : ComponentActivity() {
                         },
                         onDisconnect = { bleManager.disconnect().enqueue() },
                         onSleep = {
+                            // Format: [ID, Len, Val] ou [ID, Len]
                             bleManager.sendGoProCommand(
                                 GoProConstants.COMMAND_CHAR_UUID,
-                                byteArrayOf(GoProConstants.CMD_SLEEP.toByte())
+                                byteArrayOf(GoProConstants.CMD_SLEEP.toByte(), 0x00)
                             )
                         },
                         onReboot = {
                             bleManager.sendGoProCommand(
                                 GoProConstants.COMMAND_CHAR_UUID,
-                                byteArrayOf(GoProConstants.CMD_REBOOT.toByte())
+                                byteArrayOf(GoProConstants.CMD_REBOOT.toByte(), 0x00)
                             )
                         },
                         onSyncTime = { syncDateTime() },
@@ -366,11 +367,17 @@ class MainActivity : ComponentActivity() {
             delay(1000)
 
             Log.d("MainActivity", "📡 3. Récupération des valeurs actuelles")
-            // Requête globale (sans IDs) : la caméra renvoie tout son état actuel
-            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()))
-            delay(800)
-            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()))
-            delay(800)
+            // CRITIQUE : La H11 exige la liste des IDs, elle refuse les requêtes vides
+            bleManager.sendGoProCommand(
+                GoProConstants.QUERY_CHAR_UUID, 
+                byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()) + statusIds
+            )
+            delay(1000)
+            bleManager.sendGoProCommand(
+                GoProConstants.QUERY_CHAR_UUID, 
+                byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()) + settingIds.map { it.toByte() }.toByteArray()
+            )
+            delay(1000)
 
             Log.d("MainActivity", "📡 4. Récupération des Presets (Protobuf)")
             fetchPresets()
