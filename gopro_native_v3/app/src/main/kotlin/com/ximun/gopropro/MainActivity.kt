@@ -237,16 +237,15 @@ class MainActivity : ComponentActivity() {
                         },
                         onDisconnect = { bleManager.disconnect().enqueue() },
                         onSleep = {
-                            // Format: [ID, Len, Val] ou [ID, Len]
                             bleManager.sendGoProCommand(
                                 GoProConstants.COMMAND_CHAR_UUID,
-                                byteArrayOf(GoProConstants.CMD_SLEEP.toByte(), 0x00)
+                                byteArrayOf(GoProConstants.CMD_SLEEP.toByte())
                             )
                         },
                         onReboot = {
                             bleManager.sendGoProCommand(
                                 GoProConstants.COMMAND_CHAR_UUID,
-                                byteArrayOf(GoProConstants.CMD_REBOOT.toByte(), 0x00)
+                                byteArrayOf(GoProConstants.CMD_REBOOT.toByte())
                             )
                         },
                         onSyncTime = { syncDateTime() },
@@ -353,8 +352,19 @@ class MainActivity : ComponentActivity() {
                 GoProConstants.SETTING_ID_LED
             )
             
+            Log.d("MainActivity", "📡 0. Prise de contrôle (Take Control)")
+            // Commande Vitale pour HERO 9/10/11/12 : Feature 0xF1, Action 0x01, Val 0x01
+            bleManager.sendGoProCommand(
+                GoProConstants.COMMAND_CHAR_UUID,
+                byteArrayOf(GoProConstants.CMD_CAMERA_CONTROL.toByte(), 0x01, 0x01)
+            )
+            delay(1000)
+
             Log.d("MainActivity", "📡 1. Version et Infos Matériel")
-            bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, byteArrayOf(GoProConstants.CMD_GET_VERSION.toByte(), 0x00))
+            bleManager.sendGoProCommand(
+                GoProConstants.COMMAND_CHAR_UUID, 
+                byteArrayOf(GoProConstants.CMD_GET_VERSION.toByte())
+            )
             delay(500)
             getHardwareInfo()
             delay(1000)
@@ -423,10 +433,9 @@ class MainActivity : ComponentActivity() {
 
     private fun getHardwareInfo() {
         // Envoi commande 0x3C sur COMMAND UUID
-        // Selon spec OpenGoPro : ID(3C) + Length(00)
         bleManager.sendGoProCommand(
             GoProConstants.COMMAND_CHAR_UUID,
-            byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte(), 0x00)
+            byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte())
         )
     }
 
