@@ -110,22 +110,20 @@ class MainActivity : ComponentActivity() {
                             
                             if (updates.isEmpty()) return@launch
                             
-                            // Helper robuste pour convertir n'importe quel type en Int (max 4 bytes)
+                            // Helper robuste pour convertir n'importe quel type en Int
                             fun convertToInt(v: Any?): Int {
-                                when (v) {
-                                    is Int -> return v
+                                return when (v) {
+                                    is Int -> v
+                                    is Long -> v.toInt()
                                     is ByteArray -> {
-                                        // Big Endian
-                                        return when (v.size) {
-                                            1 -> v[0].toInt() and 0xFF
-                                            2 -> ((v[0].toInt() and 0xFF) shl 8) or (v[1].toInt() and 0xFF)
-                                            4 -> ((v[0].toInt() and 0xFF) shl 24) or ((v[1].toInt() and 0xFF) shl 16) or 
-                                                 ((v[2].toInt() and 0xFF) shl 8) or (v[3].toInt() and 0xFF)
-                                            else -> 0
+                                        var res = 0
+                                        for (b in v) {
+                                            res = (res shl 8) or (b.toInt() and 0xFF)
                                         }
+                                        res
                                     }
-                                    is List<*> -> return (v.firstOrNull() as? Int) ?: 0
-                                    else -> return 0
+                                    is List<*> -> (v.firstOrNull() as? Int) ?: 0
+                                    else -> 0
                                 }
                             }
 
@@ -206,11 +204,11 @@ class MainActivity : ComponentActivity() {
                 viewModel.updateConnection(connected)
                 if (connected) {
                     lifecycleScope.launch {
-                        delay(1000) // Augmenter à 1 seconde
+                        delay(500)
+                        startKeepAlive() // Lancer Keep Alive IMMÉDIATEMENT pour sécuriser la session
+                        delay(500)
                         try {
                             subscribeToUpdates()
-                            delay(500)
-                            startKeepAlive()
                         } catch (e: Exception) {
                             Log.e("MainActivity", "❌ Erreur subscribeToUpdates: ${e.message}", e)
                         }
@@ -298,21 +296,14 @@ class MainActivity : ComponentActivity() {
         keepAliveJob = lifecycleScope.launch {
             while (true) {
                 if (viewModel.uiState.value.isConnected) {
-                    // 1. Keep Alive pur sur Settings Char (ID 0x5B, Val 0x42)
+                    // Les GoPro HERO nécessitent un Keep Alive toutes les ~3s
+                    // On utilise le Keep Alive spécifique (0x5B, 1, 0x42) sur la caractéristique SETTINGS
                     bleManager.sendGoProCommand(
                         GoProConstants.SETTINGS_CHAR_UUID,
                         byteArrayOf(GoProConstants.CMD_KEEP_ALIVE.toByte(), 1, GoProConstants.CMD_KEEP_ALIVE_VAL.toByte())
                     )
-                    
-                    delay(3500) // Recommandé toutes les 3-4 secondes
-                    
-                    // 2. Refresh Status (Batterie, Enregistrement) sur Query Char
-                    bleManager.sendGoProCommand(
-                        GoProConstants.QUERY_CHAR_UUID,
-                        byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte())
-                    )
                 }
-                delay(5000)
+                delay(3000)
             }
         }
     }
@@ -361,54 +352,55 @@ class MainActivity : ComponentActivity() {
                 GoProConstants.SETTING_ID_LED
             )
             
-            Log.d("MainActivity", "📡 1. Register Status Updates (0x53)")
+            Log.d("MainActivity", "📡 1. Version et Infos Matériel")
+            bleManager.sendGoProCommand(
+                GoProConstants.COMMAND_CHAR_UUID,
+                byteArrayOf(GoProConstants.CMD_GET_VERSION.toByte(), 0x00)
+            )
+            delay(300)
+            getHardwareInfo()
+            delay(500)
+
+            Log.d("MainActivity", "📡 2. Abonnements (Status & Settings)")
             bleManager.sendGoProCommand(
                 GoProConstants.QUERY_CHAR_UUID, 
                 byteArrayOf(GoProConstants.QRY_REGISTER_STATUS_UPDATES.toByte()) + statusIds
             )
-            delay(300)
-            
-            Log.d("MainActivity", "📡 2. Register Settings Updates (0x52)")
+            delay(500)
             bleManager.sendGoProCommand(
                 GoProConstants.QUERY_CHAR_UUID, 
                 byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()) + 
                 settingIds.map { it.toByte() }.toByteArray()
             )
-            delay(300)
-            
-            Log.d("MainActivity", "📡 3. Get Status Values (0x13)")
+            delay(500)
+
+            Log.d("MainActivity", "📡 3. Récupération des valeurs initiales")
+            // On demande les statuts critiques
             bleManager.sendGoProCommand(
                 GoProConstants.QUERY_CHAR_UUID, 
-                byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte())
+                byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()) + statusIds
             )
-            delay(300)
-            
-            Log.d("MainActivity", "📡 4. Get Settings Values (0x12)")
+            delay(500)
+            // On demande les réglages critiques
             bleManager.sendGoProCommand(
                 GoProConstants.QUERY_CHAR_UUID, 
-                byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte())
+                byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()) + settingIds.map { it.toByte() }.toByteArray()
             )
             delay(500)
             
-            Log.d("MainActivity", "📡 5. Récupération des capacités individuelles")
+            Log.d("MainActivity", "📡 4. Récupération des Presets (Protobuf)")
+            fetchPresets()
+            delay(800)
+
+            Log.d("MainActivity", "📡 5. Récupération des capacités (Boucle lente)")
             settingIds.forEachIndexed { index, settingId ->
-                Log.d("MainActivity", "   ⭐ Get Capability pour Setting ID $settingId (${index + 1}/${settingIds.size})")
-                // Format: [0x32, SettingID] - UN SEUL setting par requête
                 bleManager.sendGoProCommand(
                     GoProConstants.QUERY_CHAR_UUID,
                     byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte(), settingId.toByte())
                 )
-                delay(800) // Augmenté à 800ms pour plus de stabilité
+                delay(300) // 300ms entre chaque capacité pour une stabilité maximale
             }
             
-            Log.d("MainActivity", "📡 6. Récupération des Presets (Protobuf 0xF5)")
-            fetchPresets()
-            delay(500)
-            
-            Log.d("MainActivity", "📡 7. Récupération Hardware Info (0x3C)")
-            getHardwareInfo()
-            delay(300)
-
             Log.d("MainActivity", "✅ subscribeToUpdates TERMINÉ")
         } catch (e: Exception) {
             Log.e("MainActivity", "❌ Erreur dans subscribeToUpdates: ${e.message}", e)
@@ -441,12 +433,7 @@ class MainActivity : ComponentActivity() {
 
     private fun getHardwareInfo() {
         // Envoi commande 0x3C sur COMMAND UUID
-        bleManager.sendGoProCommand(
-            GoProConstants.COMMAND_CHAR_UUID,
-            byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte(), 0x00) // 0x00 Length (ou pas de longueur pour cmd simple?)
-            // Spec OpenGoPro: Length 0. 
-        )
-        // Correction: CMD_GET_[...] sont souvent Length 0x00
+        // Selon spec OpenGoPro : ID(3C) + Length(00)
         bleManager.sendGoProCommand(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte(), 0x00)
