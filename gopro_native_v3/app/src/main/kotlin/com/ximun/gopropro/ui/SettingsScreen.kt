@@ -96,12 +96,14 @@ fun RenderSetting(
     settings: Map<Int, Int>,
     onUpdateSetting: (Int, Int) -> Unit
 ) {
-    val caps = capabilities[settingId]
-    if (!caps.isNullOrEmpty()) {
+    val currentVal = settings[settingId]
+    // Si on a la valeur actuelle, on affiche le réglage, même si on n'a pas encore les toutes les capacités
+    if (currentVal != null) {
+        val caps = capabilities[settingId] ?: listOf(currentVal)
         SettingDropdown(
             label = GoProSettingsMappings.getSettingName(settingId),
             settingId = settingId,
-            currentValue = settings[settingId],
+            currentValue = currentVal,
             capabilities = caps,
             onValueChange = { value -> onUpdateSetting(settingId, value) }
         )

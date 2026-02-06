@@ -353,55 +353,37 @@ class MainActivity : ComponentActivity() {
             )
             
             Log.d("MainActivity", "📡 1. Version et Infos Matériel")
-            bleManager.sendGoProCommand(
-                GoProConstants.COMMAND_CHAR_UUID,
-                byteArrayOf(GoProConstants.CMD_GET_VERSION.toByte(), 0x00)
-            )
-            delay(300)
-            getHardwareInfo()
+            bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, byteArrayOf(GoProConstants.CMD_GET_VERSION.toByte(), 0x00))
             delay(500)
+            getHardwareInfo()
+            delay(1000)
 
             Log.d("MainActivity", "📡 2. Abonnements (Status & Settings)")
-            bleManager.sendGoProCommand(
-                GoProConstants.QUERY_CHAR_UUID, 
-                byteArrayOf(GoProConstants.QRY_REGISTER_STATUS_UPDATES.toByte()) + statusIds
-            )
+            // On s'abonne à TOUT d'un coup (plus stable au démarrage)
+            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_STATUS_UPDATES.toByte()) + statusIds)
             delay(500)
-            bleManager.sendGoProCommand(
-                GoProConstants.QUERY_CHAR_UUID, 
-                byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()) + 
-                settingIds.map { it.toByte() }.toByteArray()
-            )
-            delay(500)
+            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()) + settingIds.map { it.toByte() }.toByteArray())
+            delay(1000)
 
-            Log.d("MainActivity", "📡 3. Récupération des valeurs initiales")
-            // On demande les statuts critiques
-            bleManager.sendGoProCommand(
-                GoProConstants.QUERY_CHAR_UUID, 
-                byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()) + statusIds
-            )
-            delay(500)
-            // On demande les réglages critiques
-            bleManager.sendGoProCommand(
-                GoProConstants.QUERY_CHAR_UUID, 
-                byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()) + settingIds.map { it.toByte() }.toByteArray()
-            )
-            delay(500)
-            
+            Log.d("MainActivity", "📡 3. Récupération des valeurs actuelles")
+            // Requête globale (sans IDs) : la caméra renvoie tout son état actuel
+            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()))
+            delay(800)
+            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()))
+            delay(800)
+
             Log.d("MainActivity", "📡 4. Récupération des Presets (Protobuf)")
             fetchPresets()
             delay(800)
-
-            Log.d("MainActivity", "📡 5. Récupération des capacités (Boucle lente)")
-            settingIds.forEachIndexed { index, settingId ->
-                bleManager.sendGoProCommand(
-                    GoProConstants.QUERY_CHAR_UUID,
-                    byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte(), settingId.toByte())
-                )
-                // ESSENTIEL : Délai plus long (400ms) pour ne pas saturer la HERO 11 Mini
+            
+            Log.d("MainActivity", "📡 5. Récupération des capacités")
+            // On ne demande que le strict minimum pour ne pas saturer le buffer
+            val essentialCaps = listOf(GoProConstants.SETTING_ID_RESOLUTION, GoProConstants.SETTING_ID_FPS, GoProConstants.SETTING_ID_LENS, GoProConstants.SETTING_ID_ASPECT_RATIO)
+            essentialCaps.forEach { id ->
+                bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte(), id.toByte()))
                 delay(400)
             }
-            
+
             Log.d("MainActivity", "✅ subscribeToUpdates TERMINÉ")
         } catch (e: Exception) {
             Log.e("MainActivity", "❌ Erreur dans subscribeToUpdates: ${e.message}", e)
