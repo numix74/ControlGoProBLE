@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ximun.gopropro.GoProPresetMappings
 import com.ximun.gopropro.ui.theme.AppCard
 import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
@@ -234,7 +235,16 @@ fun SystemInfoList(state: CameraUiState) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Temps Restant", state.videoRemainingTime, Icons.Default.Timer)
             HorizontalDivider(color = PrimaryTeal)
-            InfoRow("Preset Actif", "ID ${state.currentPresetId}", Icons.Default.Tune)
+            val activePreset = state.presetGroups
+                .flatMap { it.presetArrayList }
+                .firstOrNull { it.id == state.currentPresetId }
+            val presetName = when {
+                activePreset == null -> "ID ${state.currentPresetId}"
+                activePreset.hasCustomName() -> activePreset.customName
+                activePreset.hasTitleId() -> GoProPresetMappings.getPresetTitle(activePreset.titleId.number) ?: "ID ${state.currentPresetId}"
+                else -> "ID ${state.currentPresetId}"
+            }
+            InfoRow("Preset Actif", presetName, Icons.Default.Tune)
         }
     }
 }

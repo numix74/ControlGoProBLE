@@ -187,6 +187,12 @@ class MainActivity : ComponentActivity() {
             if (updates.containsKey(0xF500)) {
                 val notifyMsg = updates[0xF500] as? GoProProtos.NotifyPresetStatus
                 if (notifyMsg != null) {
+                    for (group in notifyMsg.presetGroupArrayList) {
+                        Log.d("MainActivity", "📋 PresetGroup id=${group.id}")
+                        for (preset in group.presetArrayList) {
+                            Log.d("MainActivity", "  🎬 Preset id=${preset.id}, titleId=${if (preset.hasTitleId()) preset.titleId else "N/A"}, icon=${if (preset.hasIcon()) preset.icon else "N/A"}, mode=${if (preset.hasMode()) preset.mode else "N/A"}, customName=${if (preset.hasCustomName()) preset.customName else "N/A"}")
+                        }
+                    }
                     withContext(Dispatchers.Main) {
                         viewModel.updatePresets(notifyMsg.presetGroupArrayList)
                     }

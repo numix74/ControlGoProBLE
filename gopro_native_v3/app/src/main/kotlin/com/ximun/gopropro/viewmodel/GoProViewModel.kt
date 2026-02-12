@@ -189,8 +189,39 @@ class GoProViewModel : ViewModel() {
         _uiState.update { it.copy(currentPresetName = name) }
     }
 
-    fun updatePresets(groups: List<GoProProtos.PresetGroup>) {
-        _uiState.update { it.copy(presetGroups = groups) }
+    fun updatePresets(newGroups: List<GoProProtos.PresetGroup>) {
+        _uiState.update { state ->
+            val oldPresetCache = mutableMapOf<Int, GoProProtos.Preset>()
+            for (group in state.presetGroups) {
+                for (preset in group.presetArrayList) {
+                    if (preset.hasTitleId() || preset.hasIcon() || preset.hasCustomName()) {
+                        oldPresetCache[preset.id] = preset
+                    }
+                }
+            }
+
+            val mergedGroups = newGroups.map { group ->
+                val mergedPresets = group.presetArrayList.map { newPreset ->
+                    val oldPreset = oldPresetCache[newPreset.id]
+                    if (oldPreset != null && !newPreset.hasTitleId() && oldPreset.hasTitleId()) {
+                        val builder = newPreset.toBuilder()
+                        builder.titleId = oldPreset.titleId
+                        if (!newPreset.hasIcon() && oldPreset.hasIcon()) {
+                            builder.icon = oldPreset.icon
+                        }
+                        if (!newPreset.hasMode() && oldPreset.hasMode()) {
+                            builder.mode = oldPreset.mode
+                        }
+                        builder.build()
+                    } else {
+                        newPreset
+                    }
+                }
+                group.toBuilder().clearPresetArray().addAllPresetArray(mergedPresets).build()
+            }
+
+            state.copy(presetGroups = mergedGroups)
+        }
     }
 
     fun updateCurrentPresetId(id: Int) {

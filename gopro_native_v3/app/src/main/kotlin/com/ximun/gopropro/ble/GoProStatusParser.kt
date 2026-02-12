@@ -121,7 +121,8 @@ class GoProStatusParser {
                         0x32, 0x62, 0xA2 -> { // Canal des Capacités
                             // Chaque byte dans la valeur est une valeur possible séparée
                             // Format: [SettingID][NumBytes][Val1][Val2][Val3]...
-                            val existing = result[id] as? MutableList<Int> ?: mutableListOf()
+                            @Suppress("UNCHECKED_CAST")
+                            val existing = (result[id] as? MutableList<Int>) ?: mutableListOf()
                             for (i in 0 until length) {
                                 existing.add(data[index + i].toInt() and 0xFF)
                             }

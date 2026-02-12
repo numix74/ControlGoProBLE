@@ -1,26 +1,26 @@
 package com.ximun.gopropro.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ximun.gopropro.viewmodel.CameraUiState
+import com.ximun.gopropro.GoProPresetMappings
 import com.ximun.gopropro.proto.GoProProtos
+import com.ximun.gopropro.ui.theme.AppCard
+import com.ximun.gopropro.ui.theme.PrimaryTeal
+import com.ximun.gopropro.viewmodel.CameraUiState
 
 @Composable
 fun PresetsScreen(
@@ -30,10 +30,10 @@ fun PresetsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(20.dp)
     ) {
-        headerSection("PRESETS", "MODES RAPIDES")
-        Spacer(modifier = Modifier.height(16.dp))
+        HeaderSection(title = "PRESETS", subtitle = "MODES RAPIDES")
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (state.presetGroups.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -55,19 +55,9 @@ fun PresetGroupSection(
     currentPresetId: Int,
     onLoadPreset: (Int) -> Unit
 ) {
-    val groupTitle = when (group.id) {
-        1000 -> "VIDÉO"
-        1001 -> "PHOTO"
-        1002 -> "TIMELAPSE"
-        else -> "GROUPE ${group.id}"
-    }
-
-    val groupIcon = when (group.id) {
-        1000 -> Icons.Default.Videocam
-        1001 -> Icons.Default.PhotoCamera
-        1002 -> Icons.Default.Timelapse
-        else -> Icons.Default.Folder
-    }
+    val groupId = if (group.hasId()) group.id.number else 0
+    val groupTitle = GoProPresetMappings.getGroupTitle(groupId)
+    val groupIcon = GoProPresetMappings.getGroupIcon(groupId)
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -82,10 +72,10 @@ fun PresetGroupSection(
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            group.presetArrayList.forEach { preset ->
-                PresetCard(preset, currentPresetId == preset.id, onLoadPreset)
+            group.presetArrayList.forEachIndexed { index, preset ->
+                PresetCard(preset, currentPresetId == preset.id, index + 1, onLoadPreset)
             }
         }
     }
@@ -95,28 +85,27 @@ fun PresetGroupSection(
 fun PresetCard(
     preset: GoProProtos.Preset,
     isActive: Boolean,
+    index: Int,
     onLoadPreset: (Int) -> Unit
 ) {
     val backgroundColor = if (isActive) PrimaryTeal.copy(alpha = 0.2f) else AppCard
     val borderColor = if (isActive) PrimaryTeal else Color.Transparent
     val textColor = if (isActive) PrimaryTeal else Color.White
 
-    // Mapping rudimentaire des icônes de preset (peut être amélioré)
-    val icon = when (preset.icon) {
-        0 -> Icons.Default.Videocam              // VIDEO
-        1 -> Icons.Default.PhotoCamera           // PHOTO
-        2 -> Icons.Default.Timelapse            // TIMELAPSE
-        3 -> Icons.AutoMirrored.Filled.DirectionsRun       // ACTIVITY
-        4 -> Icons.Default.Movie                // CINEMATIC
-        5 -> Icons.Default.SlowMotionVideo      // SLOMO
-        else -> Icons.Default.RadioButtonChecked
-    }
+    val iconId = if (preset.hasIcon()) preset.icon.number else 0
+    val icon = GoProPresetMappings.getPresetIcon(iconId)
 
+    val presetName = when {
+        preset.hasCustomName() -> preset.customName
+        preset.hasTitleId() -> GoProPresetMappings.getPresetTitle(preset.titleId.number) ?: "Preset $index"
+        else -> "Preset $index"
+    }
+    val settingsLine = GoProPresetMappings.formatPresetSettings(preset.settingArrayList)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .heightIn(min = if (settingsLine != null) 72.dp else 64.dp)
             .clickable { onLoadPreset(preset.id) },
         color = backgroundColor,
         shape = RoundedCornerShape(12.dp),
@@ -130,14 +119,22 @@ fun PresetCard(
         ) {
             Icon(icon, null, tint = textColor, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = if (preset.hasCustomName()) preset.customName else "Preset ${preset.id}", // Fallback si pas de nom
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = presetName,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (settingsLine != null) {
+                    Text(
+                        text = settingsLine,
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
+            }
             if (isActive) {
-                Spacer(modifier = Modifier.weight(1f))
                 Icon(Icons.Default.CheckCircle, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
             }
         }
