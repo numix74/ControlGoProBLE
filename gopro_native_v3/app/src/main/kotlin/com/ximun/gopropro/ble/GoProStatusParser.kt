@@ -12,7 +12,13 @@ class GoProStatusParser {
             if (data.size < 2) return result
 
             val queryId = data[0].toInt() and 0xFF
-            Log.d(TAG, "🔍 Parsing Query 0x${queryId.toString(16).uppercase()} (taille: ${data.size})")
+            val statusByte = if (data.size > 1) data[1].toInt() and 0xFF else 0
+            // Vérification du status byte : 0 = succès, autre = erreur
+            // Exceptions : 0xF5 (Protobuf, byte 1 = action ID) et 0x3C (HW Info)
+            if (statusByte != 0 && queryId != 0xF5 && queryId != 0x3C) {
+                Log.w(TAG, "⚠️ Query 0x${queryId.toString(16)} rejetée (status=$statusByte)")
+                return result
+            }
 
             // Cas spécial pour les Query Response sur 0xF5 (Protobuf)
             // L'ID 0xF5 signifie souvent un retour Protobuf pour les presets/modes
@@ -99,9 +105,6 @@ class GoProStatusParser {
                 while (index + 1 < data.size) {
                     val id = data[index++].toInt() and 0xFF
                     val length = data[index++].toInt() and 0xFF
-
-                    // Log de diagnostic demandé
-                    Log.d(TAG, "Parsing TLV: ID=$id, length=$length, index=$index, size=${data.size}")
 
                     // Gestion cas length == 0
                     if (length == 0) {

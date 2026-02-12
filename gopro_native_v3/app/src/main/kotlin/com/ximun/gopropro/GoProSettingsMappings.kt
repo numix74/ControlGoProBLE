@@ -172,15 +172,17 @@ object GoProSettingsMappings {
     )
 
     // Video Lens (Setting ID 121)
+    // Note: Sur HERO11 Mini, l'Horizon Leveling est intégré dans le Lens (pas de setting 150 séparé)
+    // Valeurs 8 et 10 = Linear avec stabilisation horizon
     private val LENS_LABELS = mapOf(
         0 to "Wide",
         2 to "Narrow",
         3 to "SuperView",
         4 to "Linear",
         7 to "Max SuperView",
-        8 to "Linear + HL",
+        8 to "Linear + Horizon",
         9 to "HyperView",
-        10 to "Linear + Lock",
+        10 to "Linear + Horizon Lock",
         11 to "Max HyperView",
         12 to "Ultra SuperView",
         13 to "Ultra Wide",
