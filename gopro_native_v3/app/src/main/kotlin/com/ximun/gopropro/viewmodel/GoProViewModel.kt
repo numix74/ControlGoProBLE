@@ -191,10 +191,12 @@ class GoProViewModel : ViewModel() {
 
     fun updatePresets(newGroups: List<GoProProtos.PresetGroup>) {
         _uiState.update { state ->
+            // Cache tous les presets qui ont des infos utiles
             val oldPresetCache = mutableMapOf<Int, GoProProtos.Preset>()
             for (group in state.presetGroups) {
                 for (preset in group.presetArrayList) {
-                    if (preset.hasTitleId() || preset.hasIcon() || preset.hasCustomName()) {
+                    if (preset.hasTitleId() || preset.hasIcon() || preset.hasCustomName()
+                        || preset.settingArrayCount > 0) {
                         oldPresetCache[preset.id] = preset
                     }
                 }
@@ -203,16 +205,26 @@ class GoProViewModel : ViewModel() {
             val mergedGroups = newGroups.map { group ->
                 val mergedPresets = group.presetArrayList.map { newPreset ->
                     val oldPreset = oldPresetCache[newPreset.id]
-                    if (oldPreset != null && !newPreset.hasTitleId() && oldPreset.hasTitleId()) {
+                    if (oldPreset != null) {
                         val builder = newPreset.toBuilder()
-                        builder.titleId = oldPreset.titleId
+                        var modified = false
+                        if (!newPreset.hasTitleId() && oldPreset.hasTitleId()) {
+                            builder.titleId = oldPreset.titleId
+                            modified = true
+                        }
                         if (!newPreset.hasIcon() && oldPreset.hasIcon()) {
                             builder.icon = oldPreset.icon
+                            modified = true
                         }
                         if (!newPreset.hasMode() && oldPreset.hasMode()) {
                             builder.mode = oldPreset.mode
+                            modified = true
                         }
-                        builder.build()
+                        if (newPreset.settingArrayCount == 0 && oldPreset.settingArrayCount > 0) {
+                            builder.addAllSettingArray(oldPreset.settingArrayList)
+                            modified = true
+                        }
+                        if (modified) builder.build() else newPreset
                     } else {
                         newPreset
                     }
