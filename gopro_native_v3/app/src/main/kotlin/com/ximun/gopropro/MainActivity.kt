@@ -191,6 +191,12 @@ class MainActivity : ComponentActivity() {
                         Log.d("MainActivity", "📋 PresetGroup id=${group.id}")
                         for (preset in group.presetArrayList) {
                             Log.d("MainActivity", "  🎬 Preset id=${preset.id}, titleId=${if (preset.hasTitleId()) preset.titleId else "N/A"}, icon=${if (preset.hasIcon()) preset.icon else "N/A"}, mode=${if (preset.hasMode()) preset.mode else "N/A"}, customName=${if (preset.hasCustomName()) preset.customName else "N/A"}")
+                            for (setting in preset.settingArrayList) {
+                                val caption = if (setting.hasIsCaption() && setting.isCaption) "📌CAPTION" else ""
+                                val label = GoProSettingsMappings.getLabel(setting.id, setting.value)
+                                val name = GoProSettingsMappings.getSettingName(setting.id)
+                                Log.d("MainActivity", "    ⚙️ Setting id=${setting.id} ($name), value=${setting.value} → \"$label\" $caption")
+                            }
                         }
                     }
                     withContext(Dispatchers.Main) {
@@ -354,25 +360,37 @@ class MainActivity : ComponentActivity() {
         )
 
         val settingIds = listOf(
+            // Vidéo
             GoProConstants.SETTING_ID_RESOLUTION,
             GoProConstants.SETTING_ID_FPS,
             GoProConstants.SETTING_ID_LENS,
             GoProConstants.SETTING_ID_HYPERSMOOTH,
             GoProConstants.SETTING_ID_ANTI_FLICKER,
-            // ISO_MAX (13), WHITE_BALANCE (124), SHARPNESS (139) retirés : non documentés dans l'API officielle
             GoProConstants.SETTING_ID_BIT_RATE,
             GoProConstants.SETTING_ID_BIT_DEPTH,
             GoProConstants.SETTING_ID_VIDEO_PROFILE,
             GoProConstants.SETTING_ID_ASPECT_RATIO,
             GoProConstants.SETTING_ID_PHOTO_LENS,
+            GoProConstants.SETTING_ID_HINDSIGHT,
+            // Timelapse / Nuit
             GoProConstants.SETTING_ID_TIMELAPSE_RATE,
             GoProConstants.SETTING_ID_PHOTO_TIMELAPSE_RATE,
             GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
+            GoProConstants.SETTING_ID_TIMEWARP_SPEED,
+            GoProConstants.SETTING_ID_TIMELAPSE_LENS,
+            GoProConstants.SETTING_ID_STAR_TRAILS_LENGTH,
+            GoProConstants.SETTING_ID_LAPSE_MODE,
+            GoProConstants.SETTING_ID_MEDIA_FORMAT,
+            // Mode / Performance
+            GoProConstants.SETTING_ID_SYSTEM_VIDEO_MODE,
+            GoProConstants.SETTING_ID_MAX_LENS_MOD_ENABLE,
+            GoProConstants.SETTING_ID_VIDEO_FRAMING,
+            GoProConstants.SETTING_ID_FRAME_RATE,
+            // Système
             GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
             GoProConstants.SETTING_ID_GPS,
             GoProConstants.SETTING_ID_LCD_BRIGHTNESS,
-            GoProConstants.SETTING_ID_LED,
-            GoProConstants.SETTING_ID_HINDSIGHT
+            GoProConstants.SETTING_ID_LED
         )
 
         Log.d("MainActivity", "📡 Subscribe: Claim Control...")

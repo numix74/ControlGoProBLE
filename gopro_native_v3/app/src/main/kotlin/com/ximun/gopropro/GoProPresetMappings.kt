@@ -115,7 +115,14 @@ object GoProPresetMappings {
         if (captions.isEmpty()) return null
         return captions.mapNotNull { setting ->
             val label = GoProSettingsMappings.getLabel(setting.id, setting.value)
-            if (label.startsWith("Unknown")) null else abbreviateLabel(label)
+            when {
+                // Setting inconnu → on ne l'affiche pas
+                !GoProSettingsMappings.isKnownSetting(setting.id) -> null
+                // Label Unknown → on ne l'affiche pas
+                label.startsWith("Unknown") -> null
+                // Setting connu mais valeur brute (ex: FPS "60") → abréger et afficher
+                else -> abbreviateLabel(label)
+            }
         }.joinToString(" | ").ifEmpty { null }
     }
 
@@ -129,7 +136,6 @@ object GoProPresetMappings {
         label.contains("Linear") -> "Li"
         label.contains("Wide") -> "La"
         label.contains("Narrow") -> "Na"
-        label.endsWith(" fps") -> label.removeSuffix(" fps")
         else -> label
     }
 
@@ -155,7 +161,7 @@ object GoProPresetMappings {
         17 -> Icons.Default.Timelapse                   // TIMELAPSE_2
         18 -> Icons.Default.Tune                        // CUSTOM
         19 -> Icons.Default.Air                         // AIR
-        20 -> Icons.Default.DirectionsBike              // BIKE
+        20 -> Icons.AutoMirrored.Filled.DirectionsBike   // BIKE
         21 -> Icons.Default.Landscape                   // EPIC
         22 -> Icons.Default.Home                        // INDOOR
         23 -> Icons.Default.Speed                        // MOTOR
