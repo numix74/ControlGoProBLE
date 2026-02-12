@@ -57,7 +57,12 @@ fun SettingsScreen(
     }
 
     // Construire la liste de settings du mode à partir du preset actif
-    val modeSettingIds = buildModeSettings(activePreset)
+    val modeSettingIds = buildModeSettings(activePreset, settings.keys)
+
+    // Debug temporaire
+    android.util.Log.d("SettingsScreen", "🔧 activePreset=${activePreset?.id}, settingArrayCount=${activePreset?.settingArrayCount ?: 0}, presetSettingIds=${activePreset?.settingArrayList?.map { it.id }}")
+    android.util.Log.d("SettingsScreen", "🔧 state.settings.keys=${settings.keys.sorted()}")
+    android.util.Log.d("SettingsScreen", "🔧 modeSettingIds=${modeSettingIds.settingIds}")
 
     Column(
         modifier = Modifier
@@ -108,64 +113,73 @@ private data class ModeSettings(
 
 /**
  * Construit la liste de settings pertinents en fonction du preset actif.
- * Utilise les settingArray du preset pour déterminer quels settings afficher.
+ * Utilise les settingArray du preset pour déterminer quels settings afficher,
+ * avec fallback sur les settings par défaut si pas de données.
  */
 @Composable
 private fun buildModeSettings(
-    activePreset: com.ximun.gopropro.proto.GoProProtos.Preset?
+    activePreset: com.ximun.gopropro.proto.GoProProtos.Preset?,
+    availableSettings: Set<Int>
 ): ModeSettings {
     if (activePreset == null) return ModeSettings(defaultVideoSettings())
 
     // Récupérer tous les setting IDs du preset (pas seulement les captions)
     val presetSettingIds = activePreset.settingArrayList.map { it.id }.toSet()
 
-    // Si le preset n'a pas de settings (données pas encore reçues), fallback
-    if (presetSettingIds.isEmpty()) return ModeSettings(defaultVideoSettings())
-
-    // Détecter le type de mode pour l'icône
-    val isTimelapse = presetSettingIds.contains(GoProConstants.SETTING_ID_TIMEWARP_SPEED) ||
-            presetSettingIds.contains(GoProConstants.SETTING_ID_TIMELAPSE_RATE) ||
-            presetSettingIds.contains(GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE) ||
-            presetSettingIds.contains(GoProConstants.SETTING_ID_STAR_TRAILS_LENGTH) ||
-            presetSettingIds.contains(GoProConstants.SETTING_ID_LAPSE_MODE)
-
-    // Ordre d'affichage souhaité pour les settings du mode
-    val orderedSettingIds = listOf(
-        // Résolution et cadrage
-        GoProConstants.SETTING_ID_RESOLUTION,
-        GoProConstants.SETTING_ID_FPS,
-        GoProConstants.SETTING_ID_FRAME_RATE,
-        GoProConstants.SETTING_ID_ASPECT_RATIO,
-        GoProConstants.SETTING_ID_VIDEO_FRAMING,
-        // Objectif
-        GoProConstants.SETTING_ID_LENS,
-        GoProConstants.SETTING_ID_TIMELAPSE_LENS,
-        GoProConstants.SETTING_ID_PHOTO_LENS,
-        // Stabilisation
-        GoProConstants.SETTING_ID_HYPERSMOOTH,
-        // Timelapse / Nuit spécifiques
+    // Détecter le type de mode via le titleId
+    val titleId = if (activePreset.hasTitleId()) activePreset.titleId.number else -1
+    val isTimelapse = titleId in setOf(
+        8, 9,      // Accéléré, Nuit en accéléré
+        10, 11,    // TimeWarp, Max TimeWarp (anciens)
+        76, 77, 78, // Filés étoiles, Light Painting, Feux véhicules
+        80, 81     // Max Video, Max TimeWarp
+    ) || presetSettingIds.any { it in setOf(
         GoProConstants.SETTING_ID_TIMEWARP_SPEED,
         GoProConstants.SETTING_ID_TIMELAPSE_RATE,
         GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
         GoProConstants.SETTING_ID_STAR_TRAILS_LENGTH,
-        GoProConstants.SETTING_ID_LAPSE_MODE,
-        GoProConstants.SETTING_ID_MEDIA_FORMAT,
-        // Qualité
-        GoProConstants.SETTING_ID_BIT_RATE,
-        GoProConstants.SETTING_ID_BIT_DEPTH,
-        GoProConstants.SETTING_ID_VIDEO_PROFILE,
-        GoProConstants.SETTING_ID_SYSTEM_VIDEO_MODE,
-        // Divers
-        GoProConstants.SETTING_ID_ANTI_FLICKER,
-        GoProConstants.SETTING_ID_HINDSIGHT,
-        GoProConstants.SETTING_ID_MAX_LENS_MOD_ENABLE
-    )
+        GoProConstants.SETTING_ID_LAPSE_MODE
+    )}
 
-    // Filtrer : ne garder que ceux qui sont dans le preset
-    val filteredIds = orderedSettingIds.filter { it in presetSettingIds }
+    // Si le preset a des settings, on les utilise pour filtrer
+    if (presetSettingIds.isNotEmpty()) {
+        // Ordre d'affichage souhaité
+        val orderedSettingIds = listOf(
+            GoProConstants.SETTING_ID_RESOLUTION,
+            GoProConstants.SETTING_ID_FPS,
+            GoProConstants.SETTING_ID_FRAME_RATE,
+            GoProConstants.SETTING_ID_ASPECT_RATIO,
+            GoProConstants.SETTING_ID_VIDEO_FRAMING,
+            GoProConstants.SETTING_ID_LENS,
+            GoProConstants.SETTING_ID_TIMELAPSE_LENS,
+            GoProConstants.SETTING_ID_PHOTO_LENS,
+            GoProConstants.SETTING_ID_HYPERSMOOTH,
+            GoProConstants.SETTING_ID_TIMEWARP_SPEED,
+            GoProConstants.SETTING_ID_TIMELAPSE_RATE,
+            GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
+            GoProConstants.SETTING_ID_STAR_TRAILS_LENGTH,
+            GoProConstants.SETTING_ID_LAPSE_MODE,
+            GoProConstants.SETTING_ID_MEDIA_FORMAT,
+            GoProConstants.SETTING_ID_BIT_RATE,
+            GoProConstants.SETTING_ID_BIT_DEPTH,
+            GoProConstants.SETTING_ID_VIDEO_PROFILE,
+            GoProConstants.SETTING_ID_SYSTEM_VIDEO_MODE,
+            GoProConstants.SETTING_ID_ANTI_FLICKER,
+            GoProConstants.SETTING_ID_HINDSIGHT,
+            GoProConstants.SETTING_ID_MAX_LENS_MOD_ENABLE
+        )
 
+        val filteredIds = orderedSettingIds.filter { it in presetSettingIds }
+        if (filteredIds.isNotEmpty()) {
+            return ModeSettings(settingIds = filteredIds, isTimelapse = isTimelapse)
+        }
+    }
+
+    // Fallback : afficher tous les settings dont on a une valeur
+    // (même si le preset n'a pas de settingArray chargé)
     return ModeSettings(
-        settingIds = filteredIds.ifEmpty { defaultVideoSettings() },
+        settingIds = defaultVideoSettings().filter { it in availableSettings }
+            .ifEmpty { defaultVideoSettings() },
         isTimelapse = isTimelapse
     )
 }
