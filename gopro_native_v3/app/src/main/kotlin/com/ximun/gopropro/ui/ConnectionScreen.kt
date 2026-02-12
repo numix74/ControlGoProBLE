@@ -30,7 +30,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ConnectionScreen(
-    isConnected: Boolean,
+    isBleReady: Boolean,
     onConnect: () -> Unit
 ) {
     var isScanning by remember { mutableStateOf(false) }
@@ -157,13 +157,13 @@ fun ConnectionScreen(
                                 modifier = Modifier
                                     .size(12.dp)
                                     .background(
-                                        if (isConnected) Color.Green else Color.Red,
+                                        if (isBleReady) Color.Green else Color.Red,
                                         CircleShape
                                     )
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = if (isConnected) "CONNECTÉ" else "HORS LIGNE",
+                                text = if (isBleReady) "PRÊT" else "INITIALISATION...",
                                 color = Color.White,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Black
@@ -172,9 +172,9 @@ fun ConnectionScreen(
                     }
                     
                     Text(
-                        text = if (isConnected) 
-                            "Liaison BLE v5.3 établie." 
-                            else "Activez le Bluetooth sur votre caméra GoPro pour commencer le couplage.",
+                        text = if (isBleReady) 
+                            "Le service Bluetooth est prêt. Vous pouvez lancer la connexion."
+                            else "Veuillez patienter pendant l'initialisation du service Bluetooth...",
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
@@ -188,7 +188,7 @@ fun ConnectionScreen(
                             onConnect()
                         },
                         modifier = Modifier.fillMaxWidth().height(64.dp),
-                        enabled = !isScanning,
+                        enabled = isBleReady && !isScanning,
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isScanning) Color.DarkGray else Color(0xFF00B0FF),
