@@ -1,4 +1,6 @@
 package com.ximun.gopropro.viewmodel
+ 
+import java.util.Locale
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,9 +11,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.Immutable
+import android.util.Log
+import com.ximun.gopropro.proto.GoProProtos
 
+@Immutable
 data class CameraUiState(
     val isConnected: Boolean = false,
+    val isBleReady: Boolean = false,
     val isRecording: Boolean = false,
     val isCountdownActive: Boolean = false,
     val initialTimerValue: Int = 15,
@@ -30,7 +37,7 @@ data class CameraUiState(
     val capabilities: Map<Int, List<Int>> = emptyMap(),
 
     // Nouveaux états pour les presets
-    val presetGroups: List<com.ximun.gopropro.proto.GoProProtos.PresetGroup> = emptyList(),
+    val presetGroups: List<GoProProtos.PresetGroup> = emptyList(),
     val currentPresetId: Int = -1,
     
     // Nouveaux états pour les status
@@ -47,9 +54,9 @@ data class CameraUiState(
     val videosCount: Int = 0,
     val sdStatusLabel: String = "OK", // Mapping ID 33
     
-    val firmwareVersion: String = "v1.40",
-    val serialNumber: String = "C34413...",
-    val cameraName: String = "HERO 11 Mini" // Valeur par défaut
+    val firmwareVersion: String = "",
+    val serialNumber: String = "",
+    val cameraName: String = ""
 )
 
 
@@ -59,6 +66,10 @@ class GoProViewModel : ViewModel() {
 
     private var sessionJob: Job? = null
     private var recordingSeconds = 0
+
+    fun setBleReady(ready: Boolean) {
+        _uiState.update { it.copy(isBleReady = ready) }
+    }
 
     fun updateConnection(connected: Boolean) {
         _uiState.update { it.copy(isConnected = connected) }
@@ -99,7 +110,7 @@ class GoProViewModel : ViewModel() {
             startSessionTimer(isTimed, onAutoStop)
         } else {
             _uiState.update { it.copy(
-                displayTime = if (it.isTimerModeEnabled) String.format("00:%02d", it.initialTimerValue) else "00:00"
+                displayTime = if (it.isTimerModeEnabled) String.format(Locale.US, "00:%02d", it.initialTimerValue) else "00:00"
             ) }
         }
     }
@@ -110,7 +121,7 @@ class GoProViewModel : ViewModel() {
                 var current = _uiState.value.initialTimerValue
                 while (current > 0) {
                     _uiState.update { it.copy(
-                        displayTime = String.format("00:%02d", current),
+                        displayTime = String.format(Locale.US, "00:%02d", current),
                         currentTimerValue = current
                     ) }
                     delay(1000)
@@ -123,7 +134,7 @@ class GoProViewModel : ViewModel() {
                 while (true) {
                     val m = (recordingSeconds % 3600) / 60
                     val s = recordingSeconds % 60
-                    _uiState.update { it.copy(displayTime = String.format("%02d:%02d", m, s)) }
+                    _uiState.update { it.copy(displayTime = String.format(Locale.US, "%02d:%02d", m, s)) }
                     delay(1000)
                     recordingSeconds++
                 }
@@ -136,7 +147,7 @@ class GoProViewModel : ViewModel() {
         _uiState.update { it.copy(
             isRecording = false,
             isCountdownActive = false, 
-            displayTime = if (it.isTimerModeEnabled) String.format("00:%02d", it.initialTimerValue) else "00:00"
+            displayTime = if (it.isTimerModeEnabled) String.format(Locale.US, "00:%02d", it.initialTimerValue) else "00:00"
         ) }
     }
 
@@ -146,7 +157,7 @@ class GoProViewModel : ViewModel() {
                 val newMode = !it.isTimerModeEnabled
                 it.copy(
                     isTimerModeEnabled = newMode,
-                    displayTime = if (newMode) String.format("00:%02d", it.initialTimerValue) else "00:00"
+                    displayTime = if (newMode) String.format(Locale.US, "00:%02d", it.initialTimerValue) else "00:00"
                 )
             }
         }
@@ -159,7 +170,7 @@ class GoProViewModel : ViewModel() {
                 it.copy(
                     initialTimerValue = newValue, 
                     currentTimerValue = newValue,
-                    displayTime = if (it.isTimerModeEnabled) String.format("00:%02d", newValue) else "00:00"
+                    displayTime = if (it.isTimerModeEnabled) String.format(Locale.US, "00:%02d", newValue) else "00:00"
                 ) 
             }
         }
@@ -170,7 +181,7 @@ class GoProViewModel : ViewModel() {
     }
 
     fun updateStorage(space: String) {
-        android.util.Log.d("GoProViewModel", "Update storage: $space")
+        Log.d("GoProViewModel", "Update storage: $space")
         _uiState.update { it.copy(storageSpace = space) }
     }
 
@@ -178,7 +189,7 @@ class GoProViewModel : ViewModel() {
         _uiState.update { it.copy(currentPresetName = name) }
     }
 
-    fun updatePresets(groups: List<com.ximun.gopropro.proto.GoProProtos.PresetGroup>) {
+    fun updatePresets(groups: List<GoProProtos.PresetGroup>) {
         _uiState.update { it.copy(presetGroups = groups) }
     }
 
@@ -242,38 +253,12 @@ class GoProViewModel : ViewModel() {
         _uiState.update { it.copy(sdStatusLabel = label) }
     }
 
-    // --- HELPERS DE MAPPING ---
-
-    fun getLensLabel(id: Int): String {
-        return when (id) {
-            0 -> "Large"
-            3 -> "SuperView"
-            4 -> "Linéaire"
-            10 -> "HyperView"
-            else -> "Standard"
-        }
-    }
-
-    fun getRatioLabel(id: Int): String {
-        return when (id) {
-            0 -> "4:3"
-            1 -> "16:9"
-            2 -> "8:7"
-            4 -> "9:16"
-            else -> "Auto"
-        }
-    }
-
-    fun getGpsLabel(id: Int): String {
-        return if (id == 1) "ACTIF" else "DÉSACTIVÉ"
-    }
-
     private fun formatSize(kb: Long): String {
         val mb = kb / 1024f
         val gb = mb / 1024f
         return when {
-            gb >= 1 -> String.format("%.0f Go", gb)
-            mb >= 1 -> String.format("%.0f Mo", mb)
+            gb >= 1 -> String.format(Locale.US, "%.0f Go", gb)
+            mb >= 1 -> String.format(Locale.US, "%.0f Mo", mb)
             else -> "$kb Ko"
         }
     }
@@ -283,9 +268,9 @@ class GoProViewModel : ViewModel() {
         val m = (seconds % 3600) / 60
         val s = seconds % 60
         return if (h > 0) {
-            String.format("%d:%02d:%02d", h, m, s)
+            String.format(Locale.US, "%d:%02d:%02d", h, m, s)
         } else {
-            String.format("%02d:%02d", m, s)
+            String.format(Locale.US, "%02d:%02d", m, s)
         }
     }
 }

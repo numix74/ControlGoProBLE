@@ -2,6 +2,7 @@ package com.ximun.gopropro.ble
 
 import java.util.UUID
 
+@Suppress("unused")
 object GoProConstants {
     // Services
     val GOPRO_SERVICE_UUID: UUID = UUID.fromString("0000fea6-0000-1000-8000-00805f9b34fb")
@@ -47,15 +48,11 @@ object GoProConstants {
     const val SETTING_ID_LENS = 121
     const val SETTING_ID_PHOTO_LENS = 122
     const val SETTING_ID_HYPERSMOOTH = 135
-    const val SETTING_ID_COLOR = 134
-    const val SETTING_ID_ISO_MAX = 13 // Wait, checking doc image... Oh, Doc image says setting ID for Photos is 122. ISO MAX is usually elsewhere. I'll stick to the image for now.
-    const val SETTING_ID_WHITE_BALANCE = 124
-    const val SETTING_ID_SHARPNESS = 139
-    const val SETTING_ID_BIT_RATE = 144
-    const val SETTING_ID_BIT_DEPTH = 145
-    const val SETTING_ID_VIDEO_PROFILE = 102
-    
-    // NEW from doc image
+    const val SETTING_ID_ANTI_FLICKER = 134   // 0x86 - Anti-Flicker
+    const val SETTING_ID_BIT_RATE = 182       // 0xB6 - Video Bit Rate
+    const val SETTING_ID_BIT_DEPTH = 183      // 0xB7 - Video Bit Depth
+    const val SETTING_ID_VIDEO_PROFILE = 184  // 0xB8 - Video Profile
+    const val SETTING_ID_HINDSIGHT = 167
     const val SETTING_ID_TIMELAPSE_RATE = 5
     const val SETTING_ID_PHOTO_TIMELAPSE_RATE = 30
     const val SETTING_ID_NIGHT_LAPSE_RATE = 32
@@ -71,8 +68,10 @@ object GoProConstants {
     const val STATUS_ID_STORAGE = 54 // SD Remaining (KB) - UInt64
     const val STATUS_ID_SD_CAPACITY = 117 // SD Capacity (KB) - UInt64
     const val STATUS_ID_SD_STATUS = 33 // SD State (OK, Full, Missing...)
-    const val STATUS_ID_PHOTOS_REMAINING = 38 // Remaining Photos
-    const val STATUS_ID_VIDEOS_COUNT = 39 // Videos on card
+    const val STATUS_ID_SYSTEM_READY = 82 // Is the system fully booted and ready?
+    const val STATUS_ID_PHOTOS_REMAINING = 34 // Remaining Photos (uint32) - Photos remaining before SD full
+    const val STATUS_ID_PHOTOS_TOTAL = 38    // Total photos on sdcard (uint32)
+    const val STATUS_ID_VIDEOS_COUNT = 39    // Total videos on sdcard (uint32)
     const val STATUS_ID_VIDEO_REMAINING = 35 // Video Remaining (Sec) - UInt32
     const val STATUS_ID_ACTIVE_PRESET = 97
     const val STATUS_ID_BUSY = 8

@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ximun.gopropro.ui.theme.AppCard
+import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
 
 @Composable
@@ -29,7 +31,7 @@ fun StatusScreen(state: CameraUiState) {
             .verticalScroll(rememberScrollState()) // Ajout du scroll si petit écran
     ) {
         // En-tête
-        headerSection("SYSTEM STATUS", "DIAGNOSTIC TEMPS RÉEL")
+        HeaderSection(title = "SYSTEM STATUS", subtitle = "DIAGNOSTIC TEMPS RÉEL")
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -226,12 +228,12 @@ fun SystemInfoList(state: CameraUiState) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Photos Restantes", "${state.photosRemaining}", Icons.Default.PhotoCamera)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            InfoRow("Vidéis sur Carte", "${state.videosCount}", Icons.Default.VideoLibrary)
+            InfoRow("Vidéos sur Carte", "${state.videosCount}", Icons.Default.VideoLibrary)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Capacité SD", state.sdCapacityFormatted, Icons.Default.SdStorage)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Temps Restant", state.videoRemainingTime, Icons.Default.Timer)
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+            HorizontalDivider(color = PrimaryTeal)
             InfoRow("Preset Actif", "ID ${state.currentPresetId}", Icons.Default.Tune)
         }
     }

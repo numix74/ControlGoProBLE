@@ -5,7 +5,7 @@ import com.ximun.gopropro.proto.GoProProtos
 
 class GoProStatusParser {
     companion object {
-        private const val TAG = "GoProStatusParser"
+    private const val TAG = "GoProStatusParser"
 
         fun parseQueryResponse(data: ByteArray): Map<Int, Any> {
             val result = mutableMapOf<Int, Any>()
@@ -36,31 +36,35 @@ class GoProStatusParser {
             }
 
             if (queryId == 0x3C) { // CMD_GET_HARDWARE_INFO
-                // Structure: ID(3C) + Status(00) + [TLV...]
-                // Les valeurs sont des Strings
+                // Format: [0x3C] [Status] puis champs séquentiels [LEN] [VALUE]
+                // Champ 1=ModelNumber(bytes), 2=ModelName, 3=BoardType,
+                // 4=Firmware, 5=Serial, 6=AP_SSID, 7=AP_MAC
                 var i = 2
-                 try {
-                    while (i + 1 < data.size) {
-                        val id = data[i++].toInt() and 0xFF
+                var fieldIndex = 0
+                try {
+                    while (i < data.size) {
                         val length = data[i++].toInt() and 0xFF
-                        
+                        if (length == 0) {
+                            fieldIndex++
+                            continue
+                        }
                         if (i + length > data.size) break
-                        
+                        fieldIndex++
                         val bytes = data.copyOfRange(i, i + length)
                         val text = bytes.toString(Charsets.UTF_8)
-                        result[id] = text // ID: 1=Name, 2=MAC, 3=Serial, 6=Firmware
-                        
-                        Log.d(TAG, "ℹ️ Hardware Info - ID $id: $text")
+                        result[fieldIndex] = text
+                        Log.d(TAG, "ℹ️ HW Info - Field $fieldIndex (len=$length): $text")
                         i += length
                     }
-                    return result // Important: ne pas continuer le parsing standard
+                    return result
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ Erreur parsing Hardware Info: ${e.message}")
                 }
             }
 
-            // Offset : 2 pour réponse synchrone (ID + Status), 1 pour notification asynchrone
-            var index = if (queryId < 0x80) 2 else 1
+            // Offset : toujours 2 (ID + Status byte) pour les réponses Query
+            // Les async (0x92, 0x93, 0xA2) incluent aussi un byte status après le queryId
+            var index = 2
 
             // ⚠️ Protection Spécifique 0x93 (Similaire JS gopro_ble.js)
             // Si c'est un Status Async (0x93), on doit être très strict pour éviter les paquets corrompus (ex: len=54 dans payload de 12)
@@ -115,29 +119,12 @@ class GoProStatusParser {
 
                     when (queryId) {
                         0x32, 0x62, 0xA2 -> { // Canal des Capacités
-                            // Pour les capacités, on cumule les valeurs possibles par ID
-                            @Suppress("UNCHECKED_CAST")
+                            // Chaque byte dans la valeur est une valeur possible séparée
+                            // Format: [SettingID][NumBytes][Val1][Val2][Val3]...
                             val existing = result[id] as? MutableList<Int> ?: mutableListOf()
-                            
-                            // ✅ FIX: Décoder la valeur selon sa longueur complète
-                            val value = when (length) {
-                                1 -> data[index].toInt() and 0xFF
-                                2 -> ((data[index].toInt() and 0xFF) shl 8) or 
-                                     (data[index + 1].toInt() and 0xFF)
-                                4 -> {
-                                    var v = 0
-                                    for (i in 0 until 4) {
-                                        v = (v shl 8) or (data[index + i].toInt() and 0xFF)
-                                    }
-                                    v
-                                }
-                                else -> {
-                                    Log.w(TAG, "⚠️ Longueur inhabituelle $length pour capacité ID $id")
-                                    data[index].toInt() and 0xFF
-                                }
+                            for (i in 0 until length) {
+                                existing.add(data[index + i].toInt() and 0xFF)
                             }
-                            
-                            existing.add(value)
                             result[id] = existing
                         }
 
@@ -155,7 +142,7 @@ class GoProStatusParser {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "💥 Crash durant le parsing à l'index $index: ${e.message}")
-                Log.e(TAG, "Data hex: ${data.joinToString("-") { String.format("%02X", it) }}")
+                Log.e(TAG, "Data hex: ${data.joinToString("-") { String.format(java.util.Locale.US, "%02X", it) }}")
             }
 
             return result

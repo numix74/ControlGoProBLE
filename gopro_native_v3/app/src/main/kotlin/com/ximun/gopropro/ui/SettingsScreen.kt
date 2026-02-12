@@ -1,35 +1,33 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.ximun.gopropro.ui
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.GoProSettingsMappings
 import com.ximun.gopropro.ble.GoProConstants
+import com.ximun.gopropro.ui.theme.AppCard
+import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
 
 
@@ -44,14 +42,25 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(20.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text(
-            text = "Paramètres Vidéo",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        HeaderSection(title = "RÉGLAGES", subtitle = "PARAMÈTRES DE LA CAMÉRA")
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Videocam, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "PARAMÈTRES VIDÉO",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+
 
         val videoSettings = listOf(
             GoProConstants.SETTING_ID_RESOLUTION,
@@ -59,9 +68,10 @@ fun SettingsScreen(
             GoProConstants.SETTING_ID_ASPECT_RATIO,
             GoProConstants.SETTING_ID_LENS,
             GoProConstants.SETTING_ID_HYPERSMOOTH,
-            GoProConstants.SETTING_ID_COLOR,
-            GoProConstants.SETTING_ID_ISO_MAX,
-            GoProConstants.SETTING_ID_WHITE_BALANCE
+            GoProConstants.SETTING_ID_ANTI_FLICKER,
+            GoProConstants.SETTING_ID_BIT_RATE,
+            GoProConstants.SETTING_ID_BIT_DEPTH,
+            GoProConstants.SETTING_ID_VIDEO_PROFILE
         )
 
         videoSettings.forEach { settingId ->
@@ -70,11 +80,18 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Text(
-            text = "Paramètres Système",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Settings, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "PARAMÈTRES SYSTÈME",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
 
         val systemSettings = listOf(
             GoProConstants.SETTING_ID_GPS,
@@ -110,6 +127,7 @@ fun RenderSetting(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingDropdown(
     label: String,
@@ -128,26 +146,29 @@ fun SettingDropdown(
     } ?: "..."
 
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(text = label, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(4.dp))
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                value = currentLabel,
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                },
+        Box {
+            Surface(
                 modifier = Modifier
-                    .menuAnchor()
                     .fillMaxWidth()
-            )
+                    .clickable { expanded = true },
+                color = AppCard,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = label, fontWeight = FontWeight.Bold, color = Color.White)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = currentLabel, color = Color.Gray)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
+                    }
+                }
+            }
 
-            ExposedDropdownMenu(
+            DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
