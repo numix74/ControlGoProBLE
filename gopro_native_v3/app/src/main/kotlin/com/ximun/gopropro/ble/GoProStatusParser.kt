@@ -119,12 +119,20 @@ class GoProStatusParser {
 
                     when (queryId) {
                         0x32, 0x62, 0xA2 -> { // Canal des Capacités
-                            // Chaque byte dans la valeur est une valeur possible séparée
-                            // Format: [SettingID][NumBytes][Val1][Val2][Val3]...
+                            // Format: [SettingID][TotalLen][ValBytes...]
+                            // Chaque valeur occupe valueSize bytes (1, 2, ou 4)
+                            // La taille de chaque valeur dépend du setting
                             @Suppress("UNCHECKED_CAST")
                             val existing = (result[id] as? MutableList<Int>) ?: mutableListOf()
-                            for (i in 0 until length) {
-                                existing.add(data[index + i].toInt() and 0xFF)
+                            val valueSize = getCapabilityValueSize(id, length)
+                            var offset = 0
+                            while (offset + valueSize <= length) {
+                                var v = 0
+                                for (b in 0 until valueSize) {
+                                    v = (v shl 8) or (data[index + offset + b].toInt() and 0xFF)
+                                }
+                                existing.add(v)
+                                offset += valueSize
                             }
                             result[id] = existing
                         }
@@ -147,6 +155,58 @@ class GoProStatusParser {
             }
 
             return result
+        }
+
+        /**
+         * Détermine la taille (en bytes) de chaque valeur de capability pour un setting donné.
+         *
+         * La plupart des settings utilisent 1 byte par valeur (0..255).
+         * Certains settings (Photo Timelapse Rate, Night Lapse Rate, Scheduled Capture)
+         * utilisent 4 bytes par valeur en big-endian (doc OpenGoPro: "64-bit unsigned",
+         * mais l'analyse des données réelles montre un encodage 4 bytes dans les capabilities).
+         *
+         * Preuve empirique pour setting 32 (Night Lapse Rate):
+         *   - totalLength = 48 bytes
+         *   - 48 / 4 = 12 valeurs → correspond exactement aux 12 options connues
+         *     (4, 5, 10, 15, 20, 30, 100, 120, 300, 1800, 3600, 3601)
+         *   - Avec 2 bytes: 24 valeurs dont la moitié sont 0 (zéros alternés confirmés)
+         *   - Avec 8 bytes: 6 valeurs seulement (insuffisant)
+         *
+         * On utilise le totalLength pour valider : si length n'est pas divisible par
+         * valueSize, on fallback progressivement (4→2→1).
+         */
+        private fun getCapabilityValueSize(settingId: Int, totalLength: Int): Int {
+            // Settings connus pour avoir des valeurs encodées sur 4 bytes dans les capabilities
+            // (valeurs > 255, ex: Night Lapse Rate peut aller jusqu'à 3601)
+            val fourByteSettings = setOf(
+                30,  // Photo Timelapse Rate (valeurs: 1..3601)
+                32,  // Night Lapse Rate (valeurs: 4..3601)
+                64,  // Scheduled Capture
+                168  // Scheduled Capture (alias)
+            )
+
+            // Settings connus pour avoir des valeurs sur 2 bytes dans les capabilities
+            val twoByteSettings = setOf(
+                62,  // Setup Language
+                84,  // Date/Time related
+                85,  // Date/Time related
+                115, // Camera Control
+                118  // Exposure/ISO
+            )
+
+            val candidateSize = when (settingId) {
+                in fourByteSettings -> 4
+                in twoByteSettings -> 2
+                else -> 1
+            }
+
+            // Validation : le totalLength doit être divisible par la taille candidate.
+            // Sinon on tente la taille inférieure, puis fallback à 1.
+            return when {
+                totalLength % candidateSize == 0 -> candidateSize
+                candidateSize == 4 && totalLength % 2 == 0 -> 2
+                else -> 1
+            }
         }
     }
 }

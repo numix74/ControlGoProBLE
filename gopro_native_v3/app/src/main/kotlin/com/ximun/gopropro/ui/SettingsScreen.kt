@@ -59,11 +59,6 @@ fun SettingsScreen(
     // Construire la liste de settings du mode à partir du preset actif
     val modeSettingIds = buildModeSettings(activePreset, settings.keys)
 
-    // Debug temporaire
-    android.util.Log.d("SettingsScreen", "🔧 activePreset=${activePreset?.id}, settingArrayCount=${activePreset?.settingArrayCount ?: 0}, presetSettingIds=${activePreset?.settingArrayList?.map { it.id }}")
-    android.util.Log.d("SettingsScreen", "🔧 state.settings.keys=${settings.keys.sorted()}")
-    android.util.Log.d("SettingsScreen", "🔧 modeSettingIds=${modeSettingIds.settingIds}")
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -86,19 +81,23 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Section: Paramètres système
-        SectionHeader(icon = Icons.Default.Settings, title = "PARAMÈTRES SYSTÈME")
-        Spacer(modifier = Modifier.height(12.dp))
-
-        val systemSettings = listOf(
+        // Section: Paramètres système (seulement ceux disponibles sur le modèle)
+        val systemSettingCandidates = listOf(
             GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
             GoProConstants.SETTING_ID_LED,
             GoProConstants.SETTING_ID_LCD_BRIGHTNESS,
-            GoProConstants.SETTING_ID_GPS
+            GoProConstants.SETTING_ID_GPS,
+            GoProConstants.SETTING_ID_ANTI_FLICKER
         )
+        val availableSystemSettings = systemSettingCandidates.filter { settings.containsKey(it) }
 
-        systemSettings.forEach { settingId ->
-            RenderSetting(settingId, capabilities, settings, onUpdateSetting)
+        if (availableSystemSettings.isNotEmpty()) {
+            SectionHeader(icon = Icons.Default.Settings, title = "PARAMÈTRES SYSTÈME")
+            Spacer(modifier = Modifier.height(12.dp))
+
+            availableSystemSettings.forEach { settingId ->
+                RenderSetting(settingId, capabilities, settings, onUpdateSetting)
+            }
         }
     }
 }
@@ -113,26 +112,32 @@ private data class ModeSettings(
 
 /**
  * Construit la liste de settings pertinents en fonction du preset actif.
- * Utilise les settingArray du preset pour déterminer quels settings afficher,
- * avec fallback sur les settings par défaut si pas de données.
+ * Part des settings du preset (settingArray) puis enrichit avec des settings
+ * supplémentaires pertinents pour le mode, s'ils existent sur la caméra.
  */
-@Composable
 private fun buildModeSettings(
     activePreset: com.ximun.gopropro.proto.GoProProtos.Preset?,
     availableSettings: Set<Int>
 ): ModeSettings {
-    if (activePreset == null) return ModeSettings(defaultVideoSettings())
+    if (activePreset == null) {
+        return ModeSettings(
+            settingIds = defaultVideoSettings().filter { it in availableSettings }
+                .ifEmpty { defaultVideoSettings() }
+        )
+    }
 
-    // Récupérer tous les setting IDs du preset (pas seulement les captions)
+    // IDs du settingArray du preset (typiquement les captions: résolution, fps, objectif...)
     val presetSettingIds = activePreset.settingArrayList.map { it.id }.toSet()
 
-    // Détecter le type de mode via le titleId
+    // Détecter le type de mode via le titleId (valeurs du proto EnumPresetTitle)
     val titleId = if (activePreset.hasTitleId()) activePreset.titleId.number else -1
     val isTimelapse = titleId in setOf(
-        8, 9,      // Accéléré, Nuit en accéléré
-        10, 11,    // TimeWarp, Max TimeWarp (anciens)
-        76, 77, 78, // Filés étoiles, Light Painting, Feux véhicules
-        80, 81     // Max Video, Max TimeWarp
+        7,         // TIME_WARP
+        8, 9,      // TIME_LAPSE, NIGHT_LAPSE
+        16,        // TIME_WARP_2
+        69,        // SIMPLE_TIME_WARP
+        76, 77, 78, // STAR_TRAIL, LIGHT_PAINTING, LIGHT_TRAIL
+        81         // MAX_TIMEWARP
     ) || presetSettingIds.any { it in setOf(
         GoProConstants.SETTING_ID_TIMEWARP_SPEED,
         GoProConstants.SETTING_ID_TIMELAPSE_RATE,
@@ -141,45 +146,62 @@ private fun buildModeSettings(
         GoProConstants.SETTING_ID_LAPSE_MODE
     )}
 
-    // Si le preset a des settings, on les utilise pour filtrer
-    if (presetSettingIds.isNotEmpty()) {
-        // Ordre d'affichage souhaité
-        val orderedSettingIds = listOf(
-            GoProConstants.SETTING_ID_RESOLUTION,
-            GoProConstants.SETTING_ID_FPS,
-            GoProConstants.SETTING_ID_FRAME_RATE,
-            GoProConstants.SETTING_ID_ASPECT_RATIO,
-            GoProConstants.SETTING_ID_VIDEO_FRAMING,
-            GoProConstants.SETTING_ID_LENS,
-            GoProConstants.SETTING_ID_TIMELAPSE_LENS,
-            GoProConstants.SETTING_ID_PHOTO_LENS,
-            GoProConstants.SETTING_ID_HYPERSMOOTH,
-            GoProConstants.SETTING_ID_TIMEWARP_SPEED,
-            GoProConstants.SETTING_ID_TIMELAPSE_RATE,
-            GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
-            GoProConstants.SETTING_ID_STAR_TRAILS_LENGTH,
-            GoProConstants.SETTING_ID_LAPSE_MODE,
-            GoProConstants.SETTING_ID_MEDIA_FORMAT,
-            GoProConstants.SETTING_ID_BIT_RATE,
-            GoProConstants.SETTING_ID_BIT_DEPTH,
-            GoProConstants.SETTING_ID_VIDEO_PROFILE,
-            GoProConstants.SETTING_ID_SYSTEM_VIDEO_MODE,
-            GoProConstants.SETTING_ID_ANTI_FLICKER,
-            GoProConstants.SETTING_ID_HINDSIGHT,
-            GoProConstants.SETTING_ID_MAX_LENS_MOD_ENABLE
-        )
+    // Ordre d'affichage complet (preset + enrichissements)
+    // On inclut à la fois les settings du preset ET des settings supplémentaires
+    // pertinents pour le mode, filtrés par ce qui est réellement disponible
+    val orderedSettingIds = listOf(
+        GoProConstants.SETTING_ID_RESOLUTION,
+        GoProConstants.SETTING_ID_FPS,
+        GoProConstants.SETTING_ID_FRAME_RATE,
+        GoProConstants.SETTING_ID_ASPECT_RATIO,
+        GoProConstants.SETTING_ID_VIDEO_FRAMING,
+        GoProConstants.SETTING_ID_LENS,
+        GoProConstants.SETTING_ID_TIMELAPSE_LENS,
+        GoProConstants.SETTING_ID_PHOTO_LENS,
+        GoProConstants.SETTING_ID_HYPERSMOOTH,
+        150,  // Video Horizon Leveling
+        GoProConstants.SETTING_ID_TIMEWARP_SPEED,
+        GoProConstants.SETTING_ID_TIMELAPSE_RATE,
+        GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
+        GoProConstants.SETTING_ID_STAR_TRAILS_LENGTH,
+        GoProConstants.SETTING_ID_LAPSE_MODE,
+        GoProConstants.SETTING_ID_MEDIA_FORMAT,
+        GoProConstants.SETTING_ID_BIT_RATE,
+        GoProConstants.SETTING_ID_BIT_DEPTH,
+        GoProConstants.SETTING_ID_VIDEO_PROFILE,
+        GoProConstants.SETTING_ID_SYSTEM_VIDEO_MODE,
+        GoProConstants.SETTING_ID_HINDSIGHT,
+        GoProConstants.SETTING_ID_MAX_LENS_MOD_ENABLE
+    )
 
-        val filteredIds = orderedSettingIds.filter { it in presetSettingIds }
-        if (filteredIds.isNotEmpty()) {
-            return ModeSettings(settingIds = filteredIds, isTimelapse = isTimelapse)
-        }
+    // Settings enrichis pour le mode vidéo (ajoutés même s'ils ne sont pas dans le settingArray)
+    val videoExtraSettings = setOf(
+        GoProConstants.SETTING_ID_HYPERSMOOTH,
+        150,  // Video Horizon Leveling
+        GoProConstants.SETTING_ID_BIT_RATE,
+        GoProConstants.SETTING_ID_BIT_DEPTH,
+        GoProConstants.SETTING_ID_VIDEO_PROFILE,
+        GoProConstants.SETTING_ID_HINDSIGHT
+    )
+
+    // Settings enrichis pour timelapse
+    val timelapseExtraSettings = setOf(
+        GoProConstants.SETTING_ID_LAPSE_MODE,
+        GoProConstants.SETTING_ID_MEDIA_FORMAT
+    )
+
+    val extraSettings = if (isTimelapse) timelapseExtraSettings else videoExtraSettings
+
+    // Filtre : on garde un setting s'il est dans le preset OU dans les extras ET disponible sur la caméra
+    val resultIds = orderedSettingIds.filter { id ->
+        id in presetSettingIds || (id in extraSettings && id in availableSettings)
     }
 
-    // Fallback : afficher tous les settings dont on a une valeur
-    // (même si le preset n'a pas de settingArray chargé)
     return ModeSettings(
-        settingIds = defaultVideoSettings().filter { it in availableSettings }
-            .ifEmpty { defaultVideoSettings() },
+        settingIds = resultIds.ifEmpty {
+            defaultVideoSettings().filter { it in availableSettings }
+                .ifEmpty { defaultVideoSettings() }
+        },
         isTimelapse = isTimelapse
     )
 }
@@ -190,10 +212,8 @@ private fun buildModeSettings(
 private fun defaultVideoSettings() = listOf(
     GoProConstants.SETTING_ID_RESOLUTION,
     GoProConstants.SETTING_ID_FPS,
-    GoProConstants.SETTING_ID_ASPECT_RATIO,
     GoProConstants.SETTING_ID_LENS,
     GoProConstants.SETTING_ID_HYPERSMOOTH,
-    GoProConstants.SETTING_ID_ANTI_FLICKER,
     GoProConstants.SETTING_ID_BIT_RATE,
     GoProConstants.SETTING_ID_BIT_DEPTH,
     GoProConstants.SETTING_ID_VIDEO_PROFILE
@@ -222,17 +242,18 @@ fun RenderSetting(
     onUpdateSetting: (Int, Int) -> Unit
 ) {
     val currentVal = settings[settingId]
-    // Si on a la valeur actuelle, on affiche le réglage, même si on n'a pas encore les toutes les capacités
-    if (currentVal != null) {
-        val caps = capabilities[settingId] ?: listOf(currentVal)
-        SettingDropdown(
-            label = GoProSettingsMappings.getSettingName(settingId),
-            settingId = settingId,
-            currentValue = currentVal,
-            capabilities = caps,
-            onValueChange = { value -> onUpdateSetting(settingId, value) }
-        )
+    val caps = when {
+        capabilities.containsKey(settingId) -> capabilities[settingId]!!
+        currentVal != null -> listOf(currentVal)
+        else -> emptyList()
     }
+    SettingDropdown(
+        label = GoProSettingsMappings.getSettingName(settingId),
+        settingId = settingId,
+        currentValue = currentVal,
+        capabilities = caps,
+        onValueChange = { value -> onUpdateSetting(settingId, value) }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -246,51 +267,56 @@ fun SettingDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val options = GoProSettingsMappings.getAvailableOptions(settingId, capabilities)
-
-    if (options.isEmpty()) return
+    val hasOptions = options.isNotEmpty()
 
     val currentLabel = currentValue?.let {
         GoProSettingsMappings.getLabel(settingId, it)
     } ?: "..."
 
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Box {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = true },
+                    .then(if (hasOptions) Modifier.clickable { expanded = true } else Modifier),
                 color = AppCard,
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(text = label, fontWeight = FontWeight.Bold, color = Color.White)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = currentLabel, color = Color.Gray)
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
+                        Text(text = currentLabel, color = if (currentValue != null) PrimaryTeal else Color.Gray)
+                        if (hasOptions) {
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
+                        }
                     }
                 }
             }
 
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                options.forEach { (value, optionLabel) ->
-                    DropdownMenuItem(
-                        text = { Text(optionLabel) },
-                        onClick = {
-                            onValueChange(value)
-                            expanded = false
-                        },
-                        leadingIcon = if (value == currentValue) {
-                            { Icon(Icons.Default.Check, contentDescription = null) }
-                        } else null
-                    )
+            if (hasOptions) {
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    options.forEach { (value, optionLabel) ->
+                        DropdownMenuItem(
+                            text = { Text(optionLabel) },
+                            onClick = {
+                                onValueChange(value)
+                                expanded = false
+                            },
+                            leadingIcon = if (value == currentValue) {
+                                { Icon(Icons.Default.Check, contentDescription = null) }
+                            } else null
+                        )
+                    }
                 }
             }
         }

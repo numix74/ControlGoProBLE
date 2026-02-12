@@ -253,6 +253,18 @@ object GoProSettingsMappings {
         100 to "Standard"
     )
 
+    // Video Horizon Leveling (Setting ID 150)
+    private val VIDEO_HORIZON_LEVELING_LABELS = mapOf(
+        0 to "Off",
+        2 to "Verrouillé"
+    )
+
+    // Photo Horizon Leveling (Setting ID 151)
+    private val PHOTO_HORIZON_LEVELING_LABELS = mapOf(
+        0 to "Off",
+        2 to "Verrouillé"
+    )
+
     // Hindsight (Setting ID 167)
     private val HINDSIGHT_LABELS = mapOf(
         0 to "Off",
@@ -561,6 +573,8 @@ object GoProSettingsMappings {
             128 -> MEDIA_FORMAT_LABELS
             134 -> ANTI_FLICKER_LABELS
             135 -> HYPERSMOOTH_LABELS
+            150 -> VIDEO_HORIZON_LEVELING_LABELS
+            151 -> PHOTO_HORIZON_LEVELING_LABELS
             167 -> HINDSIGHT_LABELS
             171 -> PHOTO_SINGLE_INTERVAL_LABELS
             172 -> PHOTO_INTERVAL_DURATION_LABELS
@@ -601,9 +615,9 @@ object GoProSettingsMappings {
      */
     fun isKnownSetting(settingId: Int): Boolean = when (settingId) {
         2, 3, 5, 30, 32, 59, 83, 88, 91, 108, 111, 121, 122, 123, 125, 128,
-        134, 135, 167, 171, 172, 173, 175, 176, 177, 178, 179, 180, 182, 183,
-        184, 186, 187, 189, 190, 191, 192, 193, 194, 216, 219, 223, 227, 232,
-        233, 234 -> true
+        134, 135, 150, 151, 167, 171, 172, 173, 175, 176, 177, 178, 179, 180,
+        182, 183, 184, 186, 187, 189, 190, 191, 192, 193, 194, 216, 219, 223,
+        227, 232, 233, 234 -> true
         else -> false
     }
 
@@ -640,6 +654,8 @@ object GoProSettingsMappings {
             128 -> "Format Média"
             134 -> "Anti-Flicker"
             135 -> "HyperSmooth"
+            150 -> "Maintien de l'horizon"
+            151 -> "Horizon (Photo)"
             167 -> "Hindsight"
             171 -> "Intervalle Photo"
             172 -> "Durée Intervalle"

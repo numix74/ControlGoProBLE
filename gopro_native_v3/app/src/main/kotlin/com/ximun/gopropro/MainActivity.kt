@@ -268,7 +268,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
             GoProConstants.QRY_GET_SETTINGS_VALUES, GoProConstants.RSP_ASYNC_SETTING, GoProConstants.QRY_REGISTER_SETTINGS_UPDATES -> {
-                viewModel.updateSettings(updates.mapValues { (_, v) -> convertToInt(v) })
+                val settingsMap = updates.mapValues { (_, v) -> convertToInt(v) }
+                Log.d("MainActivity", "⚙️ Settings reçus (${settingsMap.size} entries)")
+                viewModel.updateSettings(settingsMap)
             }
             GoProConstants.QRY_GET_SETTING_CAPABILITIES, GoProConstants.RSP_ASYNC_CAPABILITIES, GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES -> {
                 val capsUpdate = updates.mapValues { (_, v) ->
@@ -279,6 +281,7 @@ class MainActivity : ComponentActivity() {
                         else -> emptyList()
                     }
                 }
+                Log.d("MainActivity", "🎛️ Capabilities reçues (${capsUpdate.size} entries)")
                 viewModel.updateCapabilities(capsUpdate)
             }
         }
@@ -351,46 +354,12 @@ class MainActivity : ComponentActivity() {
             GoProConstants.STATUS_ID_STORAGE.toByte(),
             GoProConstants.STATUS_ID_SD_CAPACITY.toByte(),
             GoProConstants.STATUS_ID_SD_STATUS.toByte(),
-            GoProConstants.STATUS_ID_PHOTOS_REMAINING.toByte(), // ID 34 : photos restantes (pas 38 qui est le total)
+            GoProConstants.STATUS_ID_PHOTOS_REMAINING.toByte(),
             GoProConstants.STATUS_ID_VIDEOS_COUNT.toByte(),
             GoProConstants.STATUS_ID_VIDEO_REMAINING.toByte(),
             GoProConstants.STATUS_ID_ACTIVE_PRESET.toByte(),
             GoProConstants.STATUS_ID_BUSY.toByte(),
             GoProConstants.STATUS_ID_OVERHEATING.toByte()
-        )
-
-        val settingIds = listOf(
-            // Vidéo
-            GoProConstants.SETTING_ID_RESOLUTION,
-            GoProConstants.SETTING_ID_FPS,
-            GoProConstants.SETTING_ID_LENS,
-            GoProConstants.SETTING_ID_HYPERSMOOTH,
-            GoProConstants.SETTING_ID_ANTI_FLICKER,
-            GoProConstants.SETTING_ID_BIT_RATE,
-            GoProConstants.SETTING_ID_BIT_DEPTH,
-            GoProConstants.SETTING_ID_VIDEO_PROFILE,
-            GoProConstants.SETTING_ID_ASPECT_RATIO,
-            GoProConstants.SETTING_ID_PHOTO_LENS,
-            GoProConstants.SETTING_ID_HINDSIGHT,
-            // Timelapse / Nuit
-            GoProConstants.SETTING_ID_TIMELAPSE_RATE,
-            GoProConstants.SETTING_ID_PHOTO_TIMELAPSE_RATE,
-            GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
-            GoProConstants.SETTING_ID_TIMEWARP_SPEED,
-            GoProConstants.SETTING_ID_TIMELAPSE_LENS,
-            GoProConstants.SETTING_ID_STAR_TRAILS_LENGTH,
-            GoProConstants.SETTING_ID_LAPSE_MODE,
-            GoProConstants.SETTING_ID_MEDIA_FORMAT,
-            // Mode / Performance
-            GoProConstants.SETTING_ID_SYSTEM_VIDEO_MODE,
-            GoProConstants.SETTING_ID_MAX_LENS_MOD_ENABLE,
-            GoProConstants.SETTING_ID_VIDEO_FRAMING,
-            GoProConstants.SETTING_ID_FRAME_RATE,
-            // Système
-            GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
-            GoProConstants.SETTING_ID_GPS,
-            GoProConstants.SETTING_ID_LCD_BRIGHTNESS,
-            GoProConstants.SETTING_ID_LED
         )
 
         Log.d("MainActivity", "📡 Subscribe: Claim Control...")
@@ -401,24 +370,28 @@ class MainActivity : ComponentActivity() {
         bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_STATUS_UPDATES.toByte()) + statusIds)
         delay(1000)
 
-        Log.d("MainActivity", "📡 Subscribe: Register Settings Updates...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()) + settingIds.map { it.toByte() }.toByteArray())
+        // Settings & Capabilities : requêtes "Get All" (tableau vide)
+        // La caméra retourne TOUS ses settings/capabilities supportés.
+        // Évite le rejet silencieux si un ID n'est pas supporté par le modèle.
+        Log.d("MainActivity", "📡 Subscribe: Get ALL Settings Values...")
+        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()))
+        delay(2000)
+
+        Log.d("MainActivity", "📡 Subscribe: Get ALL Capabilities...")
+        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte()))
+        delay(2000)
+
+        // Register pour les mises à jour async (aussi "all")
+        Log.d("MainActivity", "📡 Subscribe: Register ALL Settings Updates...")
+        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()))
         delay(1000)
 
-        Log.d("MainActivity", "📡 Subscribe: Register Capabilities Updates...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES.toByte()) + settingIds.map { it.toByte() }.toByteArray())
+        Log.d("MainActivity", "📡 Subscribe: Register ALL Capabilities Updates...")
+        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES.toByte()))
         delay(1000)
 
         Log.d("MainActivity", "📡 Subscribe: Get Status Values...")
         bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()) + statusIds)
-        delay(1000)
-
-        Log.d("MainActivity", "📡 Subscribe: Get Settings Values...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()) + settingIds.map { it.toByte() }.toByteArray())
-        delay(1000)
-
-        Log.d("MainActivity", "📡 Subscribe: Get Capabilities...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte()) + settingIds.map { it.toByte() }.toByteArray())
         delay(1000)
 
         Log.d("MainActivity", "📡 Subscribe: Fetch Presets...")

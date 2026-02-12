@@ -161,7 +161,7 @@ object GoProPresetMappings {
         17 -> Icons.Default.Timelapse                   // TIMELAPSE_2
         18 -> Icons.Default.Tune                        // CUSTOM
         19 -> Icons.Default.Air                         // AIR
-        20 -> Icons.Default.PedalBike                     // BIKE
+        20 -> Icons.Default.TwoWheeler                    // BIKE
         21 -> Icons.Default.Landscape                   // EPIC
         22 -> Icons.Default.Home                        // INDOOR
         23 -> Icons.Default.Speed                        // MOTOR
