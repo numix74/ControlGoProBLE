@@ -7,6 +7,7 @@ import android.util.Log
 import no.nordicsemi.android.ble.BleManager
 import java.util.Locale
 
+@Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
 class GoProBleManager(context: Context) : BleManager(context) {
     private val tag = "GoProBleManager"
 
@@ -28,7 +29,7 @@ class GoProBleManager(context: Context) : BleManager(context) {
         fun onMessageReceived(charUuid: String, data: ByteArray)
         fun onConnectionStatusChanged(connected: Boolean)
     }
-    
+
     var callback: GoProBleCallback? = null
 
     override fun getGattCallback(): BleManagerGattCallback = GoProGattCallback()
@@ -48,7 +49,7 @@ class GoProBleManager(context: Context) : BleManager(context) {
                 settingsRspChar = service.getCharacteristic(GoProConstants.SETTINGS_RSP_CHAR_UUID)
                 queryChar = service.getCharacteristic(GoProConstants.QUERY_CHAR_UUID)
                 queryRspChar = service.getCharacteristic(GoProConstants.QUERY_RSP_CHAR_UUID)
-                
+
                 Log.d(tag, "✅ Profil GoPro identifié: CMD=${commandChar!=null}, SET=${settingsChar!=null}, QRY=${queryChar!=null}")
             } else {
                 Log.e(tag, "❌ Service GoPro (FEA6) non trouvé !")
@@ -114,8 +115,6 @@ class GoProBleManager(context: Context) : BleManager(context) {
             Log.d(tag, "GATT Manager Initialisé - File d'attente CCCD envoyée")
         }
 
-
-
         override fun onDeviceDisconnected() {
             // Nettoyage de toutes les caractéristiques
             commandChar = null
@@ -137,17 +136,8 @@ class GoProBleManager(context: Context) : BleManager(context) {
             callback?.onConnectionStatusChanged(true)
         }
 
-        @Deprecated("Deprecated in Nordic BLE")
         override fun onServicesInvalidated() {
             // Nettoyage optionnel
-        }
-
-        // Sonde de réception bas niveau (recommandée pour le debug)
-        @Deprecated("Deprecated in Nordic BLE")
-        override fun onCharacteristicNotified(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-            // Nordic recommande d'utiliser les callbacks définis dans initialize() avec enableNotifications()
-            // Cependant, on garde cette sonde pour le debug, avec l'annotation Deprecated.
-            super.onCharacteristicNotified(gatt, characteristic)
         }
     }
 
@@ -166,7 +156,7 @@ class GoProBleManager(context: Context) : BleManager(context) {
         packets.forEach { packet ->
             val hexString = packet.joinToString("-") { String.format(Locale.US, "%02X", it) }
             Log.d(tag, ">>> ENVOI BLE ($charUuid): $hexString")
-            
+
             writeCharacteristic(characteristic, packet, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
                 .with { _, data -> Log.d(tag, "✍️ Write Success: ${characteristic.uuid}, size=${data.value?.size} bytes") }
                 .fail { _, status -> Log.e(tag, "❌ Write Fail: ${characteristic.uuid}, status=$status") }

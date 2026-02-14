@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +32,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun ConnectionScreen(
     isBleReady: Boolean,
+    isBluetoothEnabled: Boolean,
     onConnect: () -> Unit
 ) {
     var isScanning by remember { mutableStateOf(false) }
@@ -83,25 +85,27 @@ fun ConnectionScreen(
         ) {
             // Header
             Box(contentAlignment = Alignment.Center) {
-                // Ping animation
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .scale(pingScale)
-                        .alpha(pingAlpha)
-                        .border(1.dp, Color(0xFF00B0FF), CircleShape)
-                )
+                // Ping animation (seulement si BT activé)
+                if (isBluetoothEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .scale(pingScale)
+                            .alpha(pingAlpha)
+                            .border(1.dp, Color(0xFF00B0FF), CircleShape)
+                    )
+                }
                 
                 Surface(
                     modifier = Modifier.size(80.dp),
                     shape = CircleShape,
-                    color = Color(0xFF00B0FF).copy(alpha = 0.1f)
+                    color = if (isBluetoothEnabled) Color(0xFF00B0FF).copy(alpha = 0.1f) else Color(0xFFEF4444).copy(alpha = 0.1f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Bluetooth,
+                            imageVector = if (isBluetoothEnabled) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
                             contentDescription = null,
-                            tint = Color(0xFF00B0FF),
+                            tint = if (isBluetoothEnabled) Color(0xFF00B0FF) else Color(0xFFEF4444),
                             modifier = Modifier.size(40.dp)
                         )
                     }
@@ -148,33 +152,41 @@ fun ConnectionScreen(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 2.sp
                         )
-                        
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(vertical = 8.dp)
                         ) {
+                            val indicatorColor = when {
+                                !isBluetoothEnabled -> Color(0xFFEF4444)
+                                isBleReady -> Color.Green
+                                else -> Color(0xFFF59E0B)
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(12.dp)
-                                    .background(
-                                        if (isBleReady) Color.Green else Color.Red,
-                                        CircleShape
-                                    )
+                                    .background(indicatorColor, CircleShape)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = if (isBleReady) "PRÊT" else "INITIALISATION...",
+                                text = when {
+                                    !isBluetoothEnabled -> "BT DÉSACTIVÉ"
+                                    isBleReady -> "PRÊT"
+                                    else -> "INITIALISATION..."
+                                },
                                 color = Color.White,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Black
                             )
                         }
                     }
-                    
+
                     Text(
-                        text = if (isBleReady) 
-                            "Le service Bluetooth est prêt. Vous pouvez lancer la connexion."
-                            else "Veuillez patienter pendant l'initialisation du service Bluetooth...",
+                        text = when {
+                            !isBluetoothEnabled -> "Le Bluetooth est désactivé. Activez-le dans les paramètres de votre téléphone."
+                            isBleReady -> "Le service Bluetooth est prêt. Vous pouvez lancer la connexion."
+                            else -> "Veuillez patienter pendant l'initialisation du service Bluetooth..."
+                        },
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
@@ -188,7 +200,7 @@ fun ConnectionScreen(
                             onConnect()
                         },
                         modifier = Modifier.fillMaxWidth().height(64.dp),
-                        enabled = isBleReady && !isScanning,
+                        enabled = isBleReady && isBluetoothEnabled && !isScanning,
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isScanning) Color.DarkGray else Color(0xFF00B0FF),

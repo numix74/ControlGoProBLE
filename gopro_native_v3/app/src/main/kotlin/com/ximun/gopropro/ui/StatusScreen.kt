@@ -215,18 +215,28 @@ fun SystemInfoList(state: CameraUiState) {
         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
     ) {
         Column {
-            // INFO CRITIQUE : Modèle Camera
-            InfoRow(state.cameraName, state.tempStatus, Icons.Default.DeviceThermostat)
+            // Modèle caméra
+            InfoRow(state.cameraName.ifEmpty { "GoPro" }, "OK", Icons.Default.Videocam)
+            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+
+            // État système
+            InfoRow("État Système", if (state.isRecording) "ENREGISTREMENT" else "PRÊT", if (state.isRecording) Icons.Default.RadioButtonChecked else Icons.Default.CheckCircle)
+            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+
+            // Température
+            InfoRow("Température", state.tempStatus, Icons.Default.DeviceThermostat)
             if (state.isOverheating) {
-                 InfoRow("SURCHAUFFE", "DANGER", Icons.Default.Warning)
-            }
-            if (state.isCharging) {
-                InfoRow("ALIMENTATION", "EN CHARGE", Icons.Default.Power)
+                HorizontalDivider(color = Color(0xFFEF4444))
+                InfoRow("SURCHAUFFE", "DANGER", Icons.Default.Warning)
             }
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
-            InfoRow("État Système", if (state.isRecording) "ENREGISTREMENT" else "PRÊT", if (state.isRecording) Icons.Default.RadioButtonChecked else Icons.Default.CheckCircle)
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+            // Alimentation
+            if (state.isCharging) {
+                InfoRow("Alimentation", "EN CHARGE", Icons.Default.Power)
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+            }
+
             InfoRow("Photos Restantes", "${state.photosRemaining}", Icons.Default.PhotoCamera)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Vidéos sur Carte", "${state.videosCount}", Icons.Default.VideoLibrary)
@@ -235,6 +245,7 @@ fun SystemInfoList(state: CameraUiState) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Temps Restant", state.videoRemainingTime, Icons.Default.Timer)
             HorizontalDivider(color = PrimaryTeal)
+
             val activePreset = state.presetGroups
                 .flatMap { it.presetArrayList }
                 .firstOrNull { it.id == state.currentPresetId }
@@ -245,6 +256,16 @@ fun SystemInfoList(state: CameraUiState) {
                 else -> "ID ${state.currentPresetId}"
             }
             InfoRow("Preset Actif", presetName, Icons.Default.Tune)
+
+            // Firmware & Serial (si disponibles)
+            if (state.firmwareVersion.isNotEmpty()) {
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                InfoRow("Firmware", state.firmwareVersion, Icons.Default.SystemUpdate)
+            }
+            if (state.serialNumber.isNotEmpty()) {
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                InfoRow("N° Série", state.serialNumber, Icons.Default.Badge)
+            }
         }
     }
 }

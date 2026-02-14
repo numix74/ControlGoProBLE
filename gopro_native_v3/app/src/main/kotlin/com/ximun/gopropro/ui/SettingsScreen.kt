@@ -9,9 +9,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.Switch
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,18 +34,24 @@ import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.GoProPresetMappings
 import com.ximun.gopropro.GoProSettingsMappings
 import com.ximun.gopropro.ble.GoProConstants
-import com.ximun.gopropro.ui.theme.AppCard
+import com.ximun.gopropro.ui.theme.LocalAppColors
 import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
 fun SettingsScreen(
     state: CameraUiState,
-    onUpdateSetting: (Int, Int) -> Unit
+    onUpdateSetting: (Int, Int) -> Unit,
+    onSyncTime: () -> Unit = {},
+    onReboot: () -> Unit = {},
+    onToggleDarkMode: () -> Unit = {}
 ) {
     val settings = state.settings
     val capabilities = state.capabilities
+    val appColors = LocalAppColors.current
 
     // Trouver le preset actif et ses settings
     val activePreset = state.presetGroups
@@ -85,20 +96,56 @@ fun SettingsScreen(
         val systemSettingCandidates = listOf(
             GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
             GoProConstants.SETTING_ID_LED,
+            GoProConstants.SETTING_ID_BEEP_VOLUME,
             GoProConstants.SETTING_ID_LCD_BRIGHTNESS,
+            GoProConstants.SETTING_ID_SCREEN_SAVER,
             GoProConstants.SETTING_ID_GPS,
-            GoProConstants.SETTING_ID_ANTI_FLICKER
+            GoProConstants.SETTING_ID_ANTI_FLICKER,
+            GoProConstants.SETTING_ID_WIRELESS_BAND,
+            GoProConstants.SETTING_ID_LANGUAGE
         )
         val availableSystemSettings = systemSettingCandidates.filter { settings.containsKey(it) }
 
-        if (availableSystemSettings.isNotEmpty()) {
-            SectionHeader(icon = Icons.Default.Settings, title = "PARAMÈTRES SYSTÈME")
-            Spacer(modifier = Modifier.height(12.dp))
+        SectionHeader(icon = Icons.Default.Settings, title = "PARAMÈTRES SYSTÈME")
+        Spacer(modifier = Modifier.height(12.dp))
 
-            availableSystemSettings.forEach { settingId ->
-                RenderSetting(settingId, capabilities, settings, onUpdateSetting)
-            }
+        // Settings système de la caméra
+        availableSystemSettings.forEach { settingId ->
+            RenderSetting(settingId, capabilities, settings, onUpdateSetting)
         }
+
+        // Toggle Mode Sombre/Clair (app)
+        DarkModeToggle(isDarkMode = state.isDarkMode, onToggle = onToggleDarkMode)
+
+        // Bouton Sync Horloge (toujours visible)
+        ActionSettingRow(
+            label = "Sync Horloge",
+            icon = Icons.Default.Sync,
+            actionLabel = "Synchroniser",
+            feedbackLabel = "✓ Synchronisé",
+            feedbackColor = Color(0xFF4CAF50),
+            feedbackDurationMs = 2000,
+            onClick = onSyncTime
+        )
+
+        // Bouton Redémarrer (conditionnel — masqué si non supporté par la caméra)
+        // CMD_REBOOT (0x11) n'est pas supporté sur tous les modèles (ex: HERO11 Mini)
+        // On vérifie via la présence d'un setting connu qui confirme le support
+        val isRebootSupported = settings.containsKey(GoProConstants.SETTING_ID_LCD_BRIGHTNESS)
+                && !state.cameraName.contains("Mini", ignoreCase = true)
+        if (isRebootSupported) {
+            ActionSettingRow(
+                label = "Redémarrer",
+                icon = Icons.Default.RestartAlt,
+                actionLabel = "Redémarrer",
+                feedbackLabel = "Redémarrage...",
+                feedbackColor = Color(0xFFF59E0B),
+                feedbackDurationMs = 3000,
+                onClick = onReboot
+            )
+        }
+
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 
@@ -219,14 +266,124 @@ private fun defaultVideoSettings() = listOf(
     GoProConstants.SETTING_ID_VIDEO_PROFILE
 )
 
+/**
+ * Toggle Mode Sombre/Clair intégré dans les paramètres système.
+ * Même style visuel que les dropdowns de réglages.
+ */
+@Composable
+private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
+    val appColors = LocalAppColors.current
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle() },
+            color = appColors.card,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, appColors.border)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                        null,
+                        tint = PrimaryTeal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Mode Sombre",
+                        fontWeight = FontWeight.Bold,
+                        color = appColors.textPrimary
+                    )
+                }
+                Switch(
+                    checked = isDarkMode,
+                    onCheckedChange = { onToggle() }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Bouton d'action intégré dans les paramètres système.
+ * Même style visuel que les dropdowns mais avec feedback temporaire.
+ */
+@Composable
+private fun ActionSettingRow(
+    label: String,
+    icon: ImageVector,
+    actionLabel: String,
+    feedbackLabel: String,
+    feedbackColor: Color,
+    feedbackDurationMs: Long,
+    onClick: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var feedback by remember { mutableStateOf(false) }
+    val appColors = LocalAppColors.current
+
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !feedback) {
+                    onClick()
+                    scope.launch {
+                        feedback = true
+                        delay(feedbackDurationMs)
+                        feedback = false
+                    }
+                },
+            color = appColors.card,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(
+                1.dp,
+                if (feedback) feedbackColor.copy(alpha = 0.4f) else appColors.border
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = label, fontWeight = FontWeight.Bold, color = appColors.textPrimary)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (feedback) feedbackLabel else actionLabel,
+                        color = if (feedback) feedbackColor else PrimaryTeal,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        icon, null,
+                        tint = if (feedback) feedbackColor else PrimaryTeal,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SectionHeader(icon: ImageVector, title: String) {
+    val appColors = LocalAppColors.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
-            color = Color.Gray,
+            color = appColors.textSecondary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp
@@ -268,6 +425,7 @@ fun SettingDropdown(
     var expanded by remember { mutableStateOf(false) }
     val options = GoProSettingsMappings.getAvailableOptions(settingId, capabilities)
     val hasOptions = options.isNotEmpty()
+    val appColors = LocalAppColors.current
 
     val currentLabel = currentValue?.let {
         GoProSettingsMappings.getLabel(settingId, it)
@@ -279,9 +437,9 @@ fun SettingDropdown(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(if (hasOptions) Modifier.clickable { expanded = true } else Modifier),
-                color = AppCard,
+                color = appColors.card,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                border = BorderStroke(1.dp, appColors.border)
             ) {
                 Row(
                     modifier = Modifier
@@ -290,11 +448,11 @@ fun SettingDropdown(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = label, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(text = label, fontWeight = FontWeight.Bold, color = appColors.textPrimary)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = currentLabel, color = if (currentValue != null) PrimaryTeal else Color.Gray)
+                        Text(text = currentLabel, color = if (currentValue != null) PrimaryTeal else appColors.textSecondary)
                         if (hasOptions) {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = appColors.textSecondary)
                         }
                     }
                 }

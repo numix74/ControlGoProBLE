@@ -9,9 +9,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.ximun.gopropro.ui.theme.LocalAppColors
 import com.ximun.gopropro.ui.theme.PrimaryTeal
 
 @Composable
@@ -20,6 +20,7 @@ fun HeaderSection(
     subtitle: String,
     actions: @Composable (RowScope.() -> Unit)? = null
 ) {
+    val appColors = LocalAppColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -28,7 +29,7 @@ fun HeaderSection(
         Column {
             Text(
                 text = title,
-                color = Color.White,
+                color = appColors.textPrimary,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Black
             )

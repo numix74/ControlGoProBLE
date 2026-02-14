@@ -7,7 +7,10 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -49,6 +52,15 @@ class MainActivity : ComponentActivity() {
     private val bluetoothAdapter by lazy { bluetoothManager.adapter }
     private val bleScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
 
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: android.content.Intent) {
+            if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                viewModel.setBluetoothEnabled(state == BluetoothAdapter.STATE_ON)
+            }
+        }
+    }
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -60,6 +72,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Vérifier l'état initial du Bluetooth et écouter les changements
+        viewModel.setBluetoothEnabled(bluetoothAdapter?.isEnabled == true)
+        registerReceiver(
+            bluetoothReceiver,
+            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        )
+
         bleScope.launch {
             initializeBle()
         }
@@ -67,10 +86,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val state by viewModel.uiState.collectAsState()
 
-            GoProTheme {
+            GoProTheme(darkTheme = state.isDarkMode) {
                 if (!state.isConnected) {
                     ConnectionScreen(
                         isBleReady = state.isBleReady,
+                        isBluetoothEnabled = state.isBluetoothEnabled,
                         onConnect = { checkPermissionsAndScan() }
                     )
                 } else {
@@ -106,7 +126,8 @@ class MainActivity : ComponentActivity() {
                                 byteArrayOf(id.toByte(), 1, value.toByte())
                             )
                         },
-                        onLoadPreset = { loadPreset(it) }
+                        onLoadPreset = { loadPreset(it) },
+                        onToggleDarkMode = { viewModel.toggleDarkMode() }
                     )
                 }
             }
@@ -473,5 +494,10 @@ class MainActivity : ComponentActivity() {
             bleScanner?.stopScan(this)
             bleManager.connect(result.device).retry(3, 100).useAutoConnect(false).enqueue()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
     }
 }

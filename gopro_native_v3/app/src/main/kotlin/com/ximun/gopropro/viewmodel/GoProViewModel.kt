@@ -19,6 +19,7 @@ import com.ximun.gopropro.proto.GoProProtos
 data class CameraUiState(
     val isConnected: Boolean = false,
     val isBleReady: Boolean = false,
+    val isBluetoothEnabled: Boolean = false,
     val isRecording: Boolean = false,
     val isCountdownActive: Boolean = false,
     val initialTimerValue: Int = 15,
@@ -56,7 +57,10 @@ data class CameraUiState(
     
     val firmwareVersion: String = "",
     val serialNumber: String = "",
-    val cameraName: String = ""
+    val cameraName: String = "",
+
+    // Préférences app
+    val isDarkMode: Boolean = true
 )
 
 
@@ -69,6 +73,14 @@ class GoProViewModel : ViewModel() {
 
     fun setBleReady(ready: Boolean) {
         _uiState.update { it.copy(isBleReady = ready) }
+    }
+
+    fun setBluetoothEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(isBluetoothEnabled = enabled) }
+    }
+
+    fun toggleDarkMode() {
+        _uiState.update { it.copy(isDarkMode = !it.isDarkMode) }
     }
 
     fun updateConnection(connected: Boolean) {
