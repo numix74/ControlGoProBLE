@@ -105,7 +105,7 @@ fun DashboardScreen(
 private fun StatsSection(state: CameraUiState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         StatusCard(Modifier.weight(1f), "BATTERIE", "${state.batteryLevel}%", Icons.Default.BatteryChargingFull)
-        StatusCard(Modifier.weight(1f), "STOCKAGE", state.storageSpace, Icons.Default.Storage)
+        StatusCard(Modifier.weight(1f), "STOCKAGE", state.storageSpace, Icons.Default.SdCard)
     }
 }
 
@@ -290,9 +290,9 @@ fun DashboardNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavItem("Controle", Icons.Default.Dashboard, selectedTab == 0) { onTabSelected(0) }
+            NavItem("Controle", Icons.Default.Videocam, selectedTab == 0) { onTabSelected(0) }
             NavItem("Réglages", Icons.Default.Settings, selectedTab == 1) { onTabSelected(1) }
-            NavItem("Presets", Icons.Default.Tune, selectedTab == 2) { onTabSelected(2) }
+            NavItem("Presets", Icons.Default.DashboardCustomize, selectedTab == 2) { onTabSelected(2) }
             NavItem("Status", Icons.Default.Info, selectedTab == 3) { onTabSelected(3) }
         }
     }

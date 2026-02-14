@@ -255,7 +255,7 @@ fun SystemInfoList(state: CameraUiState) {
                 activePreset.hasTitleId() -> GoProPresetMappings.getPresetTitle(activePreset.titleId.number) ?: "ID ${state.currentPresetId}"
                 else -> "ID ${state.currentPresetId}"
             }
-            InfoRow("Preset Actif", presetName, Icons.Default.Tune)
+            InfoRow("Preset Actif", presetName, Icons.Default.DashboardCustomize)
 
             // Firmware & Serial (si disponibles)
             if (state.firmwareVersion.isNotEmpty()) {
@@ -283,8 +283,8 @@ fun InfoRow(label: String, value: String, icon: ImageVector) {
             Icon(
                 icon,
                 contentDescription = null,
-                tint = PrimaryTeal.copy(alpha = 0.6f),
-                modifier = Modifier.size(12.dp)
+                tint = PrimaryTeal.copy(alpha = 0.7f),
+                modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(

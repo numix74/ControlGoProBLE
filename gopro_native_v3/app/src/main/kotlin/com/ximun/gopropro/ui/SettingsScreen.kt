@@ -285,28 +285,28 @@ private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Text(
+                    text = if (isDarkMode) "Mode Clair" else "Mode Sombre",
+                    fontWeight = FontWeight.Bold,
+                    color = appColors.textPrimary
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
                         null,
                         tint = PrimaryTeal,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Mode Sombre",
-                        fontWeight = FontWeight.Bold,
-                        color = appColors.textPrimary
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = isDarkMode,
+                        onCheckedChange = { onToggle() }
                     )
                 }
-                Switch(
-                    checked = isDarkMode,
-                    onCheckedChange = { onToggle() }
-                )
             }
         }
     }
