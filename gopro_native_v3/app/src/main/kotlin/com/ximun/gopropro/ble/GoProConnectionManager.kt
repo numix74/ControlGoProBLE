@@ -85,6 +85,10 @@ class GoProConnectionManager(
 
     fun destroy() {
         keepAliveJob?.cancel()
+        if (::bleManager.isInitialized) {
+            bleManager.disconnect().enqueue()
+            bleManager.close()
+        }
     }
 
     // ── Scan & Connexion ─────────────────────────────────────────────
