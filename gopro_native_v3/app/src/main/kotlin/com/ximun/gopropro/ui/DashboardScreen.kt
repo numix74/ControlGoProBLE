@@ -3,6 +3,7 @@ package com.ximun.gopropro.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,6 +26,8 @@ import com.ximun.gopropro.ui.theme.HilightYellow
 import com.ximun.gopropro.ui.theme.LocalAppColors
 import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -37,6 +41,7 @@ fun DashboardLayout(
     onSyncTime: () -> Unit,
     onToggleTimerMode: () -> Unit,
     onAdjustTimer: (Int) -> Unit,
+    onSnapTimer: () -> Unit,
     onTabSelected: (Int) -> Unit,
     onUpdateSetting: (Int, Int) -> Unit,
     onLoadPreset: (Int) -> Unit,
@@ -53,7 +58,7 @@ fun DashboardLayout(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (state.selectedTab) {
-                0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer)
+                0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer, onSnapTimer)
                 1 -> SettingsScreen(state, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble)
                 2 -> PresetsScreen(state, onLoadPreset)
                 3 -> StatusScreen(state)
@@ -70,7 +75,8 @@ fun DashboardScreen(
     onDisconnect: () -> Unit,
     onSleep: () -> Unit,
     onToggleTimerMode: () -> Unit,
-    onAdjustTimer: (Int) -> Unit
+    onAdjustTimer: (Int) -> Unit,
+    onSnapTimer: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -95,7 +101,7 @@ fun DashboardScreen(
         Spacer(modifier = Modifier.height(24.dp))
         StatsSection(state)
         Spacer(modifier = Modifier.height(32.dp))
-        TimerSection(state, onToggleTimerMode, onAdjustTimer)
+        TimerSection(state, onToggleTimerMode, onAdjustTimer, onSnapTimer)
         Spacer(modifier = Modifier.height(40.dp))
         RecordingControls(state, onRecordToggle, onHilight)
         Spacer(modifier = Modifier.height(80.dp))
@@ -114,11 +120,12 @@ private fun StatsSection(state: CameraUiState) {
 private fun TimerSection(
     state: CameraUiState,
     onToggleTimerMode: () -> Unit,
-    onAdjustTimer: (Int) -> Unit
+    onAdjustTimer: (Int) -> Unit,
+    onSnapTimer: () -> Unit
 ) {
-    // Optimization: avoid re-calculating strings if values don't change
     val timerLabel = remember(state.isCountdownActive) { if (state.isCountdownActive) "REBOURS" else "DURÉE" }
     val timerColor = remember(state.isCountdownActive) { if (state.isCountdownActive) HilightYellow else PrimaryTeal }
+    val showAdjust = state.isTimerModeEnabled && !state.isRecording && !state.isCountdownActive
 
     val appColors = LocalAppColors.current
     Box(
@@ -126,10 +133,14 @@ private fun TimerSection(
             .fillMaxWidth()
             .clip(RoundedCornerShape(32.dp))
             .background(appColors.card)
-            .padding(32.dp),
+            .padding(vertical = 24.dp, horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Label DURÉE / REBOURS — en haut, séparé du chrono
             Text(
                 text = timerLabel,
                 color = timerColor,
@@ -137,32 +148,60 @@ private fun TimerSection(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp
             )
-            Text(
-                text = state.displayTime,
-                color = appColors.textPrimary,
-                fontSize = 72.sp,
-                fontWeight = FontWeight.Light
-            )
-        }
-        
-        TimerControls(state, onToggleTimerMode, onAdjustTimer, Modifier.align(Alignment.TopEnd))
-    }
-}
 
-@Composable
-private fun TimerControls(
-    state: CameraUiState,
-    onToggleTimerMode: () -> Unit,
-    onAdjustTimer: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val appColors = LocalAppColors.current
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Chrono central avec +/- de chaque côté
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                // Bouton "-" à gauche du chrono
+                if (showAdjust) {
+                    RepeatableIconButton(
+                        icon = Icons.Default.Remove,
+                        tint = appColors.textSecondary,
+                        onSingleClick = { onAdjustTimer(-5) },
+                        onRepeatTick = { onAdjustTimer(-1) },
+                        onSnapRelease = onSnapTimer
+                    )
+                } else {
+                    Spacer(modifier = Modifier.size(44.dp))
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Chrono centré verticalement avec les +/-
+                Text(
+                    text = state.displayTime,
+                    color = appColors.textPrimary,
+                    fontSize = 72.sp,
+                    fontWeight = FontWeight.Light
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Bouton "+" à droite du chrono
+                if (showAdjust) {
+                    RepeatableIconButton(
+                        icon = Icons.Default.Add,
+                        tint = appColors.textSecondary,
+                        onSingleClick = { onAdjustTimer(5) },
+                        onRepeatTick = { onAdjustTimer(1) },
+                        onSnapRelease = onSnapTimer
+                    )
+                } else {
+                    Spacer(modifier = Modifier.size(44.dp))
+                }
+            }
+        }
+
+        // Icône Timer — position fixe en haut à droite, 5dp du bord haut et droit
         Surface(
             modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 5.dp, end = 5.dp)
                 .size(48.dp)
                 .clickable { onToggleTimerMode() },
             color = if (state.isTimerModeEnabled) HilightYellow.copy(alpha = 0.2f) else Color.Transparent,
@@ -178,16 +217,75 @@ private fun TimerControls(
                 )
             }
         }
+    }
+}
 
-        if (state.isTimerModeEnabled && !state.isRecording && !state.isCountdownActive) {
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Remove, null, tint = appColors.textSecondary, modifier = Modifier.size(16.dp).clickable { onAdjustTimer(-5) })
-                Text(text = "${state.initialTimerValue}s", color = appColors.textPrimary, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 4.dp))
-                Icon(Icons.Default.Add, null, tint = appColors.textSecondary, modifier = Modifier.size(16.dp).clickable { onAdjustTimer(5) })
-            }
+/**
+ * Bouton icône avec support appui long : tap simple = delta normal (5s),
+ * appui long maintenu = répétition accélérée (1s par tick).
+ * Au relâchement d'un appui long, onSnapRelease est appelé pour arrondir à 0/5.
+ */
+@Composable
+private fun RepeatableIconButton(
+    icon: ImageVector,
+    tint: Color,
+    onSingleClick: () -> Unit,
+    onRepeatTick: () -> Unit,
+    onSnapRelease: () -> Unit = {}
+) {
+    val scope = rememberCoroutineScope()
+    var longPressJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
+    Surface(
+        modifier = Modifier
+            .size(44.dp)
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitPointerEvent()
+                        if (down.changes.any { it.pressed }) {
+                            val startTime = System.currentTimeMillis()
+                            var wasLongPress = false
+
+                            // Lancer un job de répétition après le délai long press
+                            longPressJob = scope.launch {
+                                delay(400) // Seuil long press
+                                wasLongPress = true
+                                while (true) {
+                                    onRepeatTick()
+                                    delay(120)
+                                }
+                            }
+
+                            // Attendre le relâchement
+                            do {
+                                val event = awaitPointerEvent()
+                            } while (event.changes.any { it.pressed })
+
+                            longPressJob?.cancel()
+                            longPressJob = null
+
+                            if (wasLongPress) {
+                                // Fin d'appui long → arrondir à 0/5
+                                onSnapRelease()
+                            } else {
+                                // Tap simple
+                                onSingleClick()
+                            }
+                        }
+                    }
+                }
+            },
+        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                null,
+                tint = tint,
+                modifier = Modifier.size(32.dp)
+            )
         }
     }
 }

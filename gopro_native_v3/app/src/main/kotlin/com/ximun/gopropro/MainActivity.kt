@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
                         onSyncTime = { syncDateTime() },
                         onToggleTimerMode = { viewModel.toggleTimerMode() },
                         onAdjustTimer = { delta -> viewModel.adjustTimer(delta) },
+                        onSnapTimer = { viewModel.snapTimerToFive() },
                         onTabSelected = { index -> viewModel.setTab(index) },
                         onUpdateSetting = { id, value ->
                             bleManager.sendGoProCommand(

@@ -127,7 +127,7 @@ class GoProViewModel : ViewModel() {
             startSessionTimer(isTimed, onAutoStop)
         } else {
             _uiState.update { it.copy(
-                displayTime = if (it.isTimerModeEnabled) String.format(Locale.US, "00:%02d", it.initialTimerValue) else "00:00"
+                displayTime = if (it.isTimerModeEnabled) formatTimerDisplay(it.initialTimerValue) else "00:00"
             ) }
         }
     }
@@ -138,7 +138,7 @@ class GoProViewModel : ViewModel() {
                 var current = _uiState.value.initialTimerValue
                 while (current > 0) {
                     _uiState.update { it.copy(
-                        displayTime = String.format(Locale.US, "00:%02d", current),
+                        displayTime = formatTimerDisplay(current),
                         currentTimerValue = current
                     ) }
                     delay(1000)
@@ -164,7 +164,7 @@ class GoProViewModel : ViewModel() {
         _uiState.update { it.copy(
             isRecording = false,
             isCountdownActive = false, 
-            displayTime = if (it.isTimerModeEnabled) String.format(Locale.US, "00:%02d", it.initialTimerValue) else "00:00"
+            displayTime = if (it.isTimerModeEnabled) formatTimerDisplay(it.initialTimerValue) else "00:00"
         ) }
     }
 
@@ -174,7 +174,7 @@ class GoProViewModel : ViewModel() {
                 val newMode = !it.isTimerModeEnabled
                 it.copy(
                     isTimerModeEnabled = newMode,
-                    displayTime = if (newMode) String.format(Locale.US, "00:%02d", it.initialTimerValue) else "00:00"
+                    displayTime = if (newMode) formatTimerDisplay(it.initialTimerValue) else "00:00"
                 )
             }
         }
@@ -182,15 +182,38 @@ class GoProViewModel : ViewModel() {
 
     fun adjustTimer(delta: Int) {
         if (!_uiState.value.isRecording && !_uiState.value.isCountdownActive) {
-            _uiState.update { 
-                val newValue = (it.initialTimerValue + delta).coerceIn(1, 60)
+            _uiState.update {
+                val newValue = (it.initialTimerValue + delta).coerceIn(5, 300)
                 it.copy(
-                    initialTimerValue = newValue, 
+                    initialTimerValue = newValue,
                     currentTimerValue = newValue,
-                    displayTime = if (it.isTimerModeEnabled) String.format(Locale.US, "00:%02d", newValue) else "00:00"
-                ) 
+                    displayTime = if (it.isTimerModeEnabled) formatTimerDisplay(newValue) else "00:00"
+                )
             }
         }
+    }
+
+    /**
+     * Arrondit la valeur du timer au multiple de 5 le plus proche.
+     * Appelé quand l'utilisateur relâche un appui long (pas de 1s).
+     */
+    fun snapTimerToFive() {
+        if (!_uiState.value.isRecording && !_uiState.value.isCountdownActive) {
+            _uiState.update {
+                val snapped = ((it.initialTimerValue + 2) / 5 * 5).coerceIn(5, 300)
+                it.copy(
+                    initialTimerValue = snapped,
+                    currentTimerValue = snapped,
+                    displayTime = if (it.isTimerModeEnabled) formatTimerDisplay(snapped) else "00:00"
+                )
+            }
+        }
+    }
+
+    private fun formatTimerDisplay(seconds: Int): String {
+        val m = seconds / 60
+        val s = seconds % 60
+        return String.format(Locale.US, "%02d:%02d", m, s)
     }
 
     fun setTab(index: Int) {
