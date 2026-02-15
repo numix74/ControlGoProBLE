@@ -10,11 +10,14 @@ import android.bluetooth.le.ScanSettings
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelUuid
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,6 +31,8 @@ import com.ximun.gopropro.ble.GoProBleManager
 import com.ximun.gopropro.ble.GoProConstants
 import com.ximun.gopropro.ble.GoProStatusParser
 import com.ximun.gopropro.proto.GoProProtos
+import com.ximun.gopropro.bubble.BubbleStateHolder
+import com.ximun.gopropro.bubble.FloatingBubbleService
 import com.ximun.gopropro.ui.ConnectionScreen
 import com.ximun.gopropro.ui.DashboardLayout
 import com.ximun.gopropro.ui.theme.GoProTheme
@@ -37,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -46,6 +52,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var bleManager: GoProBleManager
 
     private var keepAliveJob: Job? = null
+    private var bubbleObserverJob: Job? = null
     private val bleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val bluetoothManager by lazy { getSystemService(BLUETOOTH_SERVICE) as BluetoothManager }
@@ -127,10 +134,71 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         onLoadPreset = { loadPreset(it) },
-                        onToggleDarkMode = { viewModel.toggleDarkMode() }
+                        onToggleDarkMode = { viewModel.toggleDarkMode() },
+                        onToggleBubble = { viewModel.toggleBubble() }
                     )
                 }
             }
+        }
+
+        // Callback : quand l'utilisateur ferme la bulle via la Close Zone → désactiver le toggle
+        BubbleStateHolder.onBubbleDismissed = {
+            viewModel.toggleBubble()
+        }
+
+        // Observer l'état du ViewModel pour mettre à jour la bulle flottante
+        // (inclut le lancement/arrêt automatique selon connexion + toggle)
+        startBubbleStateObserver()
+    }
+
+    // ── Bulle flottante ──────────────────────────────────────────────
+
+    private var isBubbleServiceRunning = false
+
+    private fun startBubbleStateObserver() {
+        bubbleObserverJob?.cancel()
+        bubbleObserverJob = lifecycleScope.launch {
+            viewModel.uiState.collectLatest { state ->
+                // Mettre à jour l'état pour le service
+                BubbleStateHolder.updateState(
+                    isConnected = state.isConnected,
+                    isRecording = state.isRecording,
+                    isCountdownActive = state.isCountdownActive,
+                    displayTime = state.displayTime,
+                    isTimerModeEnabled = state.isTimerModeEnabled
+                )
+
+                // Gérer le cycle de vie du service selon connexion + toggle
+                val shouldShowBubble = state.isConnected && state.isBubbleEnabled
+                if (shouldShowBubble && !isBubbleServiceRunning) {
+                    requestOverlayPermissionAndStartBubble()
+                    isBubbleServiceRunning = true
+                } else if (!shouldShowBubble && isBubbleServiceRunning) {
+                    FloatingBubbleService.stop(this@MainActivity)
+                    isBubbleServiceRunning = false
+                }
+            }
+        }
+    }
+
+    private fun requestOverlayPermissionAndStartBubble() {
+        if (Settings.canDrawOverlays(this)) {
+            FloatingBubbleService.start(this)
+        } else {
+            // Demander la permission overlay
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            overlayPermissionLauncher.launch(intent)
+        }
+    }
+
+    private val overlayPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Settings.canDrawOverlays(this)) {
+            FloatingBubbleService.start(this)
         }
     }
 
@@ -498,6 +566,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        bubbleObserverJob?.cancel()
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
     }
 }

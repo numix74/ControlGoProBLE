@@ -40,7 +40,8 @@ fun DashboardLayout(
     onTabSelected: (Int) -> Unit,
     onUpdateSetting: (Int, Int) -> Unit,
     onLoadPreset: (Int) -> Unit,
-    onToggleDarkMode: () -> Unit = {}
+    onToggleDarkMode: () -> Unit = {},
+    onToggleBubble: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val appColors = com.ximun.gopropro.ui.theme.LocalAppColors.current
@@ -53,7 +54,7 @@ fun DashboardLayout(
         Box(modifier = Modifier.padding(padding)) {
             when (state.selectedTab) {
                 0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer)
-                1 -> SettingsScreen(state, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode)
+                1 -> SettingsScreen(state, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble)
                 2 -> PresetsScreen(state, onLoadPreset)
                 3 -> StatusScreen(state)
             }

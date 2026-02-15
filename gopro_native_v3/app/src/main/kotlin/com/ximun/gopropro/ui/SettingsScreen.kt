@@ -47,7 +47,8 @@ fun SettingsScreen(
     onUpdateSetting: (Int, Int) -> Unit,
     onSyncTime: () -> Unit = {},
     onReboot: () -> Unit = {},
-    onToggleDarkMode: () -> Unit = {}
+    onToggleDarkMode: () -> Unit = {},
+    onToggleBubble: () -> Unit = {}
 ) {
     val settings = state.settings
     val capabilities = state.capabilities
@@ -116,6 +117,9 @@ fun SettingsScreen(
 
         // Toggle Mode Sombre/Clair (app)
         DarkModeToggle(isDarkMode = state.isDarkMode, onToggle = onToggleDarkMode)
+
+        // Toggle Bulle Flottante (app)
+        BubbleToggle(isBubbleEnabled = state.isBubbleEnabled, onToggle = onToggleBubble)
 
         // Bouton Sync Horloge (toujours visible)
         ActionSettingRow(
@@ -307,6 +311,43 @@ private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
                         onCheckedChange = { onToggle() }
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Toggle Bulle Flottante intégré dans les paramètres système.
+ * Même style visuel que le toggle Mode Sombre/Clair.
+ */
+@Composable
+private fun BubbleToggle(isBubbleEnabled: Boolean, onToggle: () -> Unit) {
+    val appColors = LocalAppColors.current
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle() },
+            color = appColors.card,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, appColors.border)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Bulle Flottante",
+                    fontWeight = FontWeight.Bold,
+                    color = appColors.textPrimary
+                )
+                Switch(
+                    checked = isBubbleEnabled,
+                    onCheckedChange = { onToggle() }
+                )
             }
         }
     }

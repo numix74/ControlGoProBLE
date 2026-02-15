@@ -60,7 +60,8 @@ data class CameraUiState(
     val cameraName: String = "",
 
     // Préférences app
-    val isDarkMode: Boolean = true
+    val isDarkMode: Boolean = true,
+    val isBubbleEnabled: Boolean = true
 )
 
 
@@ -81,6 +82,10 @@ class GoProViewModel : ViewModel() {
 
     fun toggleDarkMode() {
         _uiState.update { it.copy(isDarkMode = !it.isDarkMode) }
+    }
+
+    fun toggleBubble() {
+        _uiState.update { it.copy(isBubbleEnabled = !it.isBubbleEnabled) }
     }
 
     fun updateConnection(connected: Boolean) {
