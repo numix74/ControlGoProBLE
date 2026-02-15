@@ -40,6 +40,12 @@ object BubbleStateHolder {
     /** Callback appelé quand l'utilisateur ferme la bulle via la Close Zone */
     var onBubbleDismissed: (() -> Unit)? = null
 
+    /** Callback appelé quand l'utilisateur fait un appui long → toggle recording */
+    var onRecordToggle: (() -> Unit)? = null
+
+    /** Callback appelé quand l'utilisateur fait un tap simple en recording → hilight */
+    var onHilight: (() -> Unit)? = null
+
     fun updateState(
         isConnected: Boolean,
         isRecording: Boolean,

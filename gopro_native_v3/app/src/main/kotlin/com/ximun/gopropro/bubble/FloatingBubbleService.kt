@@ -54,6 +54,10 @@ class FloatingBubbleService : Service() {
         private const val CLOSE_ZONE_WIDTH_DP = 200f
         private const val CLOSE_ZONE_HEIGHT_DP = 100f
 
+        // Touch timing
+        private const val LONG_PRESS_TIMEOUT = 500L
+        private const val DOUBLE_TAP_TIMEOUT = 300L
+
         fun start(context: Context) {
             val intent = Intent(context, FloatingBubbleService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -299,12 +303,29 @@ class FloatingBubbleService : Service() {
 
     // ── Touch handling ───────────────────────────────────────────────
 
+    private var hilightFlashJob: Job? = null
+
+    /**
+     * Flash éphémère HilightYellow sur la pastille après un hilight.
+     */
+    private fun triggerHilightFlash() {
+        hilightFlashJob?.cancel()
+        hilightFlashJob = serviceScope.launch {
+            bubbleView?.setHilightFlash(true)
+            delay(400)
+            bubbleView?.setHilightFlash(false)
+        }
+    }
+
     private inner class BubbleTouchListener : View.OnTouchListener {
         private var initialX = 0
         private var initialY = 0
         private var initialTouchX = 0f
         private var initialTouchY = 0f
         private var hasMoved = false
+        private var longPressTriggered = false
+        private var lastTapTime = 0L
+        private var longPressJob: Job? = null
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(v: View, event: MotionEvent): Boolean {
@@ -316,6 +337,17 @@ class FloatingBubbleService : Service() {
                     initialTouchY = event.rawY
                     hasMoved = false
                     isDragging = false
+                    longPressTriggered = false
+
+                    // Lancer le timer long press
+                    longPressJob = serviceScope.launch {
+                        delay(LONG_PRESS_TIMEOUT)
+                        if (!hasMoved) {
+                            longPressTriggered = true
+                            // Appui long → toggle recording
+                            BubbleStateHolder.onRecordToggle?.invoke()
+                        }
+                    }
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -325,8 +357,8 @@ class FloatingBubbleService : Service() {
                     if (!isDragging && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
                         isDragging = true
                         hasMoved = true
+                        longPressJob?.cancel()
                         showCloseZone()
-                        // Passer en mode drag visuel
                         bubbleView?.setDragMode(true)
                     }
 
@@ -334,7 +366,6 @@ class FloatingBubbleService : Service() {
                         val newX = (initialX + dx).toInt()
                         val newY = (initialY + dy).toInt()
 
-                        // Clamper dans les limites de l'écran
                         val screenWidth: Int
                         val screenHeight: Int
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -357,30 +388,50 @@ class FloatingBubbleService : Service() {
                             windowManager.updateViewLayout(bubbleView, bubbleParams)
                         } catch (_: Exception) {}
 
-                        // Feedback visuel si dans la close zone
                         closeZoneView?.setHighlighted(isBubbleInCloseZone())
                     }
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
+                    longPressJob?.cancel()
+
                     if (isDragging) {
                         isDragging = false
                         bubbleView?.setDragMode(false)
                         hideCloseZone()
 
                         if (isBubbleInCloseZone()) {
-                            // Synchroniser le toggle dans les réglages
                             BubbleStateHolder.onBubbleDismissed?.invoke()
-                            // Fermer la bulle
                             stopSelf()
                             return true
                         }
-                    } else if (!hasMoved) {
-                        // Simple tap → ouvrir l'app
-                        val intent = Intent(this@FloatingBubbleService, MainActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    } else if (!hasMoved && !longPressTriggered) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapTime < DOUBLE_TAP_TIMEOUT) {
+                            // Double tap → ouvrir l'app au premier plan
+                            lastTapTime = 0L
+                            val intent = Intent(this@FloatingBubbleService, MainActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            }
+                            startActivity(intent)
+                        } else {
+                            // Premier tap — attendre pour voir si double tap
+                            lastTapTime = now
+                            serviceScope.launch {
+                                delay(DOUBLE_TAP_TIMEOUT)
+                                if (lastTapTime == now) {
+                                    // Pas de second tap → tap simple
+                                    lastTapTime = 0L
+                                    val isRec = currentState == BubbleVisualState.RECORDING ||
+                                            currentState == BubbleVisualState.RECORDING_TIMER
+                                    if (isRec) {
+                                        // Hilight + flash éphémère
+                                        BubbleStateHolder.onHilight?.invoke()
+                                        triggerHilightFlash()
+                                    }
+                                }
+                            }
                         }
-                        startActivity(intent)
                     }
                     return true
                 }
@@ -408,6 +459,7 @@ class FloatingBubbleService : Service() {
     private inner class BubbleView(context: Context) : View(context) {
 
         private var inDragMode = false
+        private var showHilightFlash = false
         var isTimerModeEnabled = false
 
         // Paints réutilisables
@@ -450,6 +502,11 @@ class FloatingBubbleService : Service() {
             invalidate()
         }
 
+        fun setHilightFlash(flash: Boolean) {
+            showHilightFlash = flash
+            invalidate()
+        }
+
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             val w = width.toFloat()
@@ -468,6 +525,15 @@ class FloatingBubbleService : Service() {
                 }
                 BubbleVisualState.RECORDING -> drawRecording(canvas, w, h, radius)
                 BubbleVisualState.RECORDING_TIMER -> drawRecordingTimer(canvas, w, h, radius)
+            }
+
+            // Flash éphémère Hilight (bordure jaune par-dessus)
+            if (showHilightFlash) {
+                borderPaint.color = Color.parseColor("#CA8A04") // HilightYellow
+                borderPaint.strokeWidth = dpToPx(4f)
+                val flashInset = dpToPx(1f)
+                capsuleRect.set(flashInset, flashInset, w - flashInset, h - flashInset)
+                canvas.drawRoundRect(capsuleRect, radius - flashInset, radius - flashInset, borderPaint)
             }
         }
 

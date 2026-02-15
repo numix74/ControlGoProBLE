@@ -244,7 +244,7 @@ fun SystemInfoList(state: CameraUiState) {
             InfoRow("Capacité SD", state.sdCapacityFormatted, Icons.Default.SdStorage)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow("Temps Restant", state.videoRemainingTime, Icons.Default.Timer)
-            HorizontalDivider(color = PrimaryTeal)
+            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
             val activePreset = state.presetGroups
                 .flatMap { it.presetArrayList }

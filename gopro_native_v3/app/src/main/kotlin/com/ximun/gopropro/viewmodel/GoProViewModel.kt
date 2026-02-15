@@ -2,7 +2,9 @@ package com.ximun.gopropro.viewmodel
  
 import java.util.Locale
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -65,12 +67,29 @@ data class CameraUiState(
 )
 
 
-class GoProViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(CameraUiState())
+class GoProViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        private const val PREFS_NAME = "gopro_prefs"
+        private const val KEY_TIMER_VALUE = "timer_value"
+        private const val DEFAULT_TIMER = 15
+    }
+
+    private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val savedTimer = prefs.getInt(KEY_TIMER_VALUE, DEFAULT_TIMER).coerceIn(5, 300)
+
+    private val _uiState = MutableStateFlow(CameraUiState(
+        initialTimerValue = savedTimer,
+        currentTimerValue = savedTimer
+    ))
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
     private var sessionJob: Job? = null
     private var recordingSeconds = 0
+
+    private fun saveTimerValue(value: Int) {
+        prefs.edit().putInt(KEY_TIMER_VALUE, value).apply()
+    }
 
     fun setBleReady(ready: Boolean) {
         _uiState.update { it.copy(isBleReady = ready) }
@@ -184,6 +203,7 @@ class GoProViewModel : ViewModel() {
         if (!_uiState.value.isRecording && !_uiState.value.isCountdownActive) {
             _uiState.update {
                 val newValue = (it.initialTimerValue + delta).coerceIn(5, 300)
+                saveTimerValue(newValue)
                 it.copy(
                     initialTimerValue = newValue,
                     currentTimerValue = newValue,
@@ -201,6 +221,7 @@ class GoProViewModel : ViewModel() {
         if (!_uiState.value.isRecording && !_uiState.value.isCountdownActive) {
             _uiState.update {
                 val snapped = ((it.initialTimerValue + 2) / 5 * 5).coerceIn(5, 300)
+                saveTimerValue(snapped)
                 it.copy(
                     initialTimerValue = snapped,
                     currentTimerValue = snapped,

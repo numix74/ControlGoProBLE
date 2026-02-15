@@ -147,6 +147,19 @@ class MainActivity : ComponentActivity() {
             viewModel.toggleBubble()
         }
 
+        // Callback : appui long sur la bulle → toggle recording
+        BubbleStateHolder.onRecordToggle = {
+            handleRecordToggle()
+        }
+
+        // Callback : tap simple sur la bulle en recording → hilight
+        BubbleStateHolder.onHilight = {
+            bleManager.sendGoProCommand(
+                GoProConstants.COMMAND_CHAR_UUID,
+                byteArrayOf(GoProConstants.CMD_HILIGHT.toByte())
+            )
+        }
+
         // Observer l'état du ViewModel pour mettre à jour la bulle flottante
         // (inclut le lancement/arrêt automatique selon connexion + toggle)
         startBubbleStateObserver()
@@ -568,6 +581,15 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         bubbleObserverJob?.cancel()
+        // Arrêter la bulle flottante quand l'app est fermée
+        if (isBubbleServiceRunning) {
+            FloatingBubbleService.stop(this)
+            isBubbleServiceRunning = false
+        }
+        // Nettoyer les callbacks pour éviter les fuites
+        BubbleStateHolder.onBubbleDismissed = null
+        BubbleStateHolder.onRecordToggle = null
+        BubbleStateHolder.onHilight = null
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
     }
 }
