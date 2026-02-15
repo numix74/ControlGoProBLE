@@ -41,6 +41,9 @@ class BubbleController(
         BubbleStateHolder.onHilight = {
             connectionManager.sendHilight()
         }
+        BubbleStateHolder.onReconnect = {
+            connectionManager.reconnectManually()
+        }
     }
 
     /**
@@ -58,7 +61,7 @@ class BubbleController(
                     isTimerModeEnabled = state.isTimerModeEnabled
                 )
 
-                val shouldShowBubble = state.isConnected && state.isBubbleEnabled
+                val shouldShowBubble = state.isBubbleEnabled
                 if (shouldShowBubble && !isBubbleServiceRunning) {
                     requestOverlayPermissionAndStart(activity, overlayLauncher)
                     isBubbleServiceRunning = true
@@ -103,5 +106,6 @@ class BubbleController(
         BubbleStateHolder.onBubbleDismissed = null
         BubbleStateHolder.onRecordToggle = null
         BubbleStateHolder.onHilight = null
+        BubbleStateHolder.onReconnect = null
     }
 }

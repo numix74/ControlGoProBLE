@@ -8,6 +8,7 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -39,11 +40,30 @@ class GoProConnectionManager(
 ) {
     companion object {
         private const val TAG = "GoProConnectionManager"
+        private const val MAX_RECONNECT_ATTEMPTS = 3
+        private const val PREFS_NAME = "gopro_prefs"
+        private const val KEY_LAST_MAC = "last_device_mac"
+
+        /** Mapping setting 59 value → durée en secondes (-1 = jamais) */
+        private val AUTO_OFF_DURATIONS = mapOf(
+            0 to -1,   // Jamais
+            11 to 8,   // 8 sec
+            12 to 30,  // 30 sec
+            1 to 60,   // 1 min
+            4 to 300,  // 5 min
+            6 to 900,  // 15 min
+            7 to 1800  // 30 min
+        )
     }
 
     private lateinit var bleManager: GoProBleManager
     private var keepAliveJob: Job? = null
+    private var reconnectJob: Job? = null
+    private var isDestroyed = false
+    private var wasConnectedBefore = false
+    private var lastConnectedTimestamp = 0L
     private val bleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val bluetoothManager by lazy { context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
     private val bluetoothAdapter: BluetoothAdapter? by lazy { bluetoothManager.adapter }
@@ -67,6 +87,9 @@ class GoProConnectionManager(
                     override fun onConnectionStatusChanged(connected: Boolean) {
                         viewModel.updateConnection(connected)
                         if (connected) {
+                            wasConnectedBefore = true
+                            lastConnectedTimestamp = System.currentTimeMillis()
+                            reconnectJob?.cancel()
                             lifecycleScope.launch(Dispatchers.IO) {
                                 delay(500)
                                 startKeepAlive()
@@ -75,6 +98,10 @@ class GoProConnectionManager(
                             }
                         } else {
                             keepAliveJob?.cancel()
+                            // Reconnexion auto si on était connecté avant
+                            if (wasConnectedBefore && !isDestroyed) {
+                                attemptReconnect()
+                            }
                         }
                     }
                 }
@@ -84,7 +111,9 @@ class GoProConnectionManager(
     }
 
     fun destroy() {
+        isDestroyed = true
         keepAliveJob?.cancel()
+        reconnectJob?.cancel()
         if (::bleManager.isInitialized) {
             bleManager.disconnect().enqueue()
             bleManager.close()
@@ -120,8 +149,92 @@ class GoProConnectionManager(
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             bleScanner?.stopScan(this)
+            // Sauvegarder l'adresse MAC pour reconnexion directe
+            prefs.edit().putString(KEY_LAST_MAC, result.device.address).apply()
+            Log.d(TAG, "MAC sauvegardée: ${result.device.address}")
             bleManager.connect(result.device).retry(3, 100).useAutoConnect(false).enqueue()
         }
+    }
+
+    // ── Reconnexion automatique ──────────────────────────────────────
+
+    /**
+     * Retourne la durée d'extinction auto en secondes, ou -1 si "Jamais".
+     */
+    private fun getAutoPowerOffSeconds(): Int {
+        val settingValue = viewModel.uiState.value.settings[GoProConstants.SETTING_ID_AUTO_POWER_DOWN]
+        return AUTO_OFF_DURATIONS[settingValue] ?: -1
+    }
+
+    private fun attemptReconnect() {
+        reconnectJob?.cancel()
+        reconnectJob = lifecycleScope.launch(Dispatchers.IO) {
+            val savedMac = prefs.getString(KEY_LAST_MAC, null)
+            if (savedMac == null) {
+                Log.d(TAG, "Pas de MAC sauvegardée, reconnexion impossible")
+                return@launch
+            }
+
+            // Vérifier si c'est une extinction auto ou une perte de signal
+            val autoOffSec = getAutoPowerOffSeconds()
+            val elapsed = (System.currentTimeMillis() - lastConnectedTimestamp) / 1000
+            if (autoOffSec > 0 && elapsed >= autoOffSec) {
+                Log.d(TAG, "Extinction auto probable (écoulé=${elapsed}s >= autoOff=${autoOffSec}s), pas de reconnexion")
+                wasConnectedBefore = false
+                return@launch
+            }
+
+            Log.d(TAG, "Perte de signal probable (écoulé=${elapsed}s, autoOff=${autoOffSec}s), tentative de reconnexion vers $savedMac")
+
+            for (attempt in 1..MAX_RECONNECT_ATTEMPTS) {
+                if (isDestroyed || viewModel.uiState.value.isConnected) break
+
+                val delayMs = (1L shl attempt) * 1000L // 2s, 4s, 8s
+                Log.d(TAG, "Reconnexion tentative $attempt/$MAX_RECONNECT_ATTEMPTS (attente ${delayMs}ms)")
+                delay(delayMs)
+
+                if (isDestroyed || viewModel.uiState.value.isConnected) break
+
+                try {
+                    reconnectToDevice(savedMac)
+                    delay(5000)
+                    if (viewModel.uiState.value.isConnected) {
+                        Log.d(TAG, "Reconnexion réussie (tentative $attempt)")
+                        return@launch
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Reconnexion tentative $attempt échouée: ${e.message}")
+                }
+            }
+
+            if (!viewModel.uiState.value.isConnected) {
+                Log.w(TAG, "Reconnexion échouée après $MAX_RECONNECT_ATTEMPTS tentatives")
+                wasConnectedBefore = false
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun reconnectToDevice(macAddress: String) {
+        val device: BluetoothDevice? = bluetoothAdapter?.getRemoteDevice(macAddress)
+        if (device != null) {
+            bleManager.connect(device).retry(1, 200).useAutoConnect(false).enqueue()
+        }
+    }
+
+    /**
+     * Reconnexion manuelle déclenchée depuis la bulle (tap long en état déconnecté).
+     */
+    @SuppressLint("MissingPermission")
+    fun reconnectManually() {
+        val savedMac = prefs.getString(KEY_LAST_MAC, null)
+        if (savedMac == null) {
+            Log.d(TAG, "Pas de MAC sauvegardée, reconnexion manuelle impossible")
+            return
+        }
+        Log.d(TAG, "Reconnexion manuelle vers $savedMac")
+        wasConnectedBefore = true
+        reconnectToDevice(savedMac)
     }
 
     // ── Commandes de haut niveau ─────────────────────────────────────
@@ -130,7 +243,12 @@ class GoProConnectionManager(
         bleManager.sendGoProCommand(charUuid, payload)
     }
 
+    /**
+     * Déconnexion volontaire — désactive la reconnexion auto.
+     */
     fun disconnect() {
+        wasConnectedBefore = false
+        reconnectJob?.cancel()
         bleManager.disconnect().enqueue()
     }
 
@@ -148,7 +266,12 @@ class GoProConnectionManager(
         )
     }
 
+    /**
+     * Extinction volontaire de la caméra — désactive la reconnexion auto.
+     */
     fun sendSleep() {
+        wasConnectedBefore = false
+        reconnectJob?.cancel()
         bleManager.sendGoProCommand(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_SLEEP.toByte())

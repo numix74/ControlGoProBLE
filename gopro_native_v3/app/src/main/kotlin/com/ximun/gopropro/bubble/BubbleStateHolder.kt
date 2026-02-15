@@ -46,6 +46,9 @@ object BubbleStateHolder {
     /** Callback appelé quand l'utilisateur fait un tap simple en recording → hilight */
     var onHilight: (() -> Unit)? = null
 
+    /** Callback appelé quand l'utilisateur fait un appui long en état déconnecté → reconnexion */
+    var onReconnect: (() -> Unit)? = null
+
     fun updateState(
         isConnected: Boolean,
         isRecording: Boolean,

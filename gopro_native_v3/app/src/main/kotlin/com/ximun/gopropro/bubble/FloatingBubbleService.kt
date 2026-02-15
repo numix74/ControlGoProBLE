@@ -344,8 +344,13 @@ class FloatingBubbleService : Service() {
                         delay(LONG_PRESS_TIMEOUT)
                         if (!hasMoved) {
                             longPressTriggered = true
-                            // Appui long → toggle recording
-                            BubbleStateHolder.onRecordToggle?.invoke()
+                            if (currentState == BubbleVisualState.DISCONNECTED) {
+                                // Appui long déconnecté → reconnexion
+                                BubbleStateHolder.onReconnect?.invoke()
+                            } else {
+                                // Appui long connecté → toggle recording
+                                BubbleStateHolder.onRecordToggle?.invoke()
+                            }
                         }
                     }
                     return true

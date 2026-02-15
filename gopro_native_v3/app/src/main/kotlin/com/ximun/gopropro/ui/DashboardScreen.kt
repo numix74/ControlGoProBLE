@@ -56,12 +56,14 @@ fun DashboardLayout(
         },
         containerColor = appColors.background
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            when (state.selectedTab) {
-                0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer, onSnapTimer)
-                1 -> SettingsScreen(state, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble)
-                2 -> PresetsScreen(state, onLoadPreset)
-                3 -> StatusScreen(state)
+        Column(modifier = Modifier.padding(padding)) {
+            Box(modifier = Modifier.weight(1f)) {
+                when (state.selectedTab) {
+                    0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer, onSnapTimer)
+                    1 -> SettingsScreen(state, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble)
+                    2 -> PresetsScreen(state, onLoadPreset)
+                    3 -> StatusScreen(state)
+                }
             }
         }
     }
@@ -408,3 +410,4 @@ fun NavItem(title: String, icon: ImageVector, isSelected: Boolean, onClick: () -
         Text(title, color = if (isSelected) appColors.textPrimary else appColors.textSecondary, fontSize = 10.sp)
     }
 }
+
