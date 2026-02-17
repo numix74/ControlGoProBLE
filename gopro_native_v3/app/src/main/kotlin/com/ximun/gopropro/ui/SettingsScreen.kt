@@ -376,6 +376,7 @@ private fun ActionSettingRow(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = 80.dp)
                 .clickable(enabled = !feedback) {
                     onClick()
                     scope.launch {
@@ -477,6 +478,7 @@ fun SettingDropdown(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 80.dp)
                     .then(if (hasOptions) Modifier.clickable { expanded = true } else Modifier),
                 color = appColors.card,
                 shape = RoundedCornerShape(12.dp),
