@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
+
 package com.ximun.gopropro.ui
 
 import androidx.compose.foundation.BorderStroke
@@ -11,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +35,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun DashboardLayout(
+    windowSizeClass: WindowSizeClass,
     viewModel: com.ximun.gopropro.viewmodel.GoProViewModel,
     onRecordToggle: () -> Unit,
     onHilight: () -> Unit,
@@ -49,20 +53,40 @@ fun DashboardLayout(
     onToggleBubble: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
-    val appColors = com.ximun.gopropro.ui.theme.LocalAppColors.current
-    Scaffold(
-        bottomBar = {
-            DashboardNavBar(selectedTab = state.selectedTab, onTabSelected = onTabSelected)
-        },
-        containerColor = appColors.background
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            Box(modifier = Modifier.weight(1f)) {
-                when (state.selectedTab) {
-                    0 -> DashboardScreen(state, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer, onSnapTimer)
-                    1 -> SettingsScreen(state, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble)
-                    2 -> PresetsScreen(state, onLoadPreset)
-                    3 -> StatusScreen(state)
+    val appColors = LocalAppColors.current
+    val isLandscape = windowSizeClass.isLandscape
+
+    @Composable
+    fun TabContent() {
+        when (state.selectedTab) {
+            0 -> DashboardScreen(state, isLandscape, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer, onSnapTimer)
+            1 -> SettingsScreen(state, isLandscape, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble)
+            2 -> PresetsScreen(state, isLandscape, onLoadPreset)
+            3 -> StatusScreen(state, isLandscape)
+        }
+    }
+
+    if (isLandscape) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(appColors.background)
+        ) {
+            DashboardNavRail(selectedTab = state.selectedTab, onTabSelected = onTabSelected)
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                TabContent()
+            }
+        }
+    } else {
+        Scaffold(
+            bottomBar = {
+                DashboardNavBar(selectedTab = state.selectedTab, onTabSelected = onTabSelected)
+            },
+            containerColor = appColors.background
+        ) { padding ->
+            Column(modifier = Modifier.padding(padding)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    TabContent()
                 }
             }
         }
@@ -72,6 +96,7 @@ fun DashboardLayout(
 @Composable
 fun DashboardScreen(
     state: CameraUiState,
+    isLandscape: Boolean,
     onRecordToggle: () -> Unit,
     onHilight: () -> Unit,
     onDisconnect: () -> Unit,
@@ -80,33 +105,82 @@ fun DashboardScreen(
     onAdjustTimer: (Int) -> Unit,
     onSnapTimer: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        HeaderSection(
-            title = "STUDIO PRO",
-            subtitle = "LIAISON DIRECTE",
-            actions = {
-                Row {
-                    IconButton(onClick = onSleep) {
-                        Icon(Icons.Default.PowerSettingsNew, "Veille", tint = Color.LightGray)
+    val bottomSpacer = if (isLandscape) 24.dp else 80.dp
+
+    if (isLandscape) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+        ) {
+            // Colonne gauche : header + stats + timer
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(end = 12.dp)
+            ) {
+                HeaderSection(
+                    title = "STUDIO PRO",
+                    subtitle = "LIAISON DIRECTE",
+                    actions = {
+                        Row {
+                            IconButton(onClick = onSleep) {
+                                Icon(Icons.Default.PowerSettingsNew, "Veille", tint = Color.LightGray)
+                            }
+                            IconButton(onClick = onDisconnect) {
+                                Icon(Icons.Default.LinkOff, "Déconnexion", tint = Color.Gray)
+                            }
+                        }
                     }
-                    IconButton(onClick = onDisconnect) {
-                        Icon(Icons.Default.LinkOff, "Déconnexion", tint = Color.Gray)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                StatsSection(state)
+                Spacer(modifier = Modifier.height(16.dp))
+                TimerSection(state, timerFontSize = 56, onToggleTimerMode, onAdjustTimer, onSnapTimer)
+                Spacer(modifier = Modifier.height(bottomSpacer))
+            }
+            // Colonne droite : contrôles d'enregistrement centrés
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(start = 12.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                RecordingControls(state, onRecordToggle, onHilight)
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            HeaderSection(
+                title = "STUDIO PRO",
+                subtitle = "LIAISON DIRECTE",
+                actions = {
+                    Row {
+                        IconButton(onClick = onSleep) {
+                            Icon(Icons.Default.PowerSettingsNew, "Veille", tint = Color.LightGray)
+                        }
+                        IconButton(onClick = onDisconnect) {
+                            Icon(Icons.Default.LinkOff, "Déconnexion", tint = Color.Gray)
+                        }
                     }
                 }
-            }
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        StatsSection(state)
-        Spacer(modifier = Modifier.height(32.dp))
-        TimerSection(state, onToggleTimerMode, onAdjustTimer, onSnapTimer)
-        Spacer(modifier = Modifier.height(40.dp))
-        RecordingControls(state, onRecordToggle, onHilight)
-        Spacer(modifier = Modifier.height(80.dp))
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            StatsSection(state)
+            Spacer(modifier = Modifier.height(32.dp))
+            TimerSection(state, timerFontSize = 72, onToggleTimerMode, onAdjustTimer, onSnapTimer)
+            Spacer(modifier = Modifier.height(40.dp))
+            RecordingControls(state, onRecordToggle, onHilight)
+            Spacer(modifier = Modifier.height(bottomSpacer))
+        }
     }
 }
 
@@ -121,6 +195,7 @@ private fun StatsSection(state: CameraUiState) {
 @Composable
 private fun TimerSection(
     state: CameraUiState,
+    timerFontSize: Int,
     onToggleTimerMode: () -> Unit,
     onAdjustTimer: (Int) -> Unit,
     onSnapTimer: () -> Unit
@@ -142,7 +217,6 @@ private fun TimerSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Label DURÉE / REBOURS — en haut, séparé du chrono
             Text(
                 text = timerLabel,
                 color = timerColor,
@@ -153,13 +227,11 @@ private fun TimerSection(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Chrono central avec +/- de chaque côté
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                // Bouton "-" à gauche du chrono
                 if (showAdjust) {
                     RepeatableIconButton(
                         icon = Icons.Default.Remove,
@@ -174,17 +246,15 @@ private fun TimerSection(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Chrono centré verticalement avec les +/-
                 Text(
                     text = state.displayTime,
                     color = appColors.textPrimary,
-                    fontSize = 72.sp,
+                    fontSize = timerFontSize.sp,
                     fontWeight = FontWeight.Light
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Bouton "+" à droite du chrono
                 if (showAdjust) {
                     RepeatableIconButton(
                         icon = Icons.Default.Add,
@@ -199,7 +269,6 @@ private fun TimerSection(
             }
         }
 
-        // Icône Timer — position fixe en haut à droite, 5dp du bord haut et droit
         Surface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -249,9 +318,8 @@ private fun RepeatableIconButton(
                             val startTime = System.currentTimeMillis()
                             var wasLongPress = false
 
-                            // Lancer un job de répétition après le délai long press
                             longPressJob = scope.launch {
-                                delay(400) // Seuil long press
+                                delay(400)
                                 wasLongPress = true
                                 while (true) {
                                     onRepeatTick()
@@ -259,7 +327,6 @@ private fun RepeatableIconButton(
                                 }
                             }
 
-                            // Attendre le relâchement
                             do {
                                 val event = awaitPointerEvent()
                             } while (event.changes.any { it.pressed })
@@ -268,10 +335,8 @@ private fun RepeatableIconButton(
                             longPressJob = null
 
                             if (wasLongPress) {
-                                // Fin d'appui long → arrondir à 0/5
                                 onSnapRelease()
                             } else {
-                                // Tap simple
                                 onSingleClick()
                             }
                         }
@@ -400,6 +465,69 @@ fun DashboardNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
 }
 
 @Composable
+fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
+    val appColors = LocalAppColors.current
+    NavigationRail(
+        containerColor = appColors.card
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+        NavigationRailItem(
+            selected = selectedTab == 0,
+            onClick = { onTabSelected(0) },
+            icon = { Icon(Icons.Default.Videocam, null, modifier = Modifier.size(24.dp)) },
+            label = { Text("Controle", fontSize = 10.sp) },
+            colors = NavigationRailItemDefaults.colors(
+                selectedIconColor = AppPrimary,
+                selectedTextColor = appColors.textPrimary,
+                unselectedIconColor = appColors.textSecondary,
+                unselectedTextColor = appColors.textSecondary,
+                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+            )
+        )
+        NavigationRailItem(
+            selected = selectedTab == 1,
+            onClick = { onTabSelected(1) },
+            icon = { Icon(Icons.Default.Settings, null, modifier = Modifier.size(24.dp)) },
+            label = { Text("Réglages", fontSize = 10.sp) },
+            colors = NavigationRailItemDefaults.colors(
+                selectedIconColor = AppPrimary,
+                selectedTextColor = appColors.textPrimary,
+                unselectedIconColor = appColors.textSecondary,
+                unselectedTextColor = appColors.textSecondary,
+                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+            )
+        )
+        NavigationRailItem(
+            selected = selectedTab == 2,
+            onClick = { onTabSelected(2) },
+            icon = { Icon(Icons.Default.DashboardCustomize, null, modifier = Modifier.size(24.dp)) },
+            label = { Text("Presets", fontSize = 10.sp) },
+            colors = NavigationRailItemDefaults.colors(
+                selectedIconColor = AppPrimary,
+                selectedTextColor = appColors.textPrimary,
+                unselectedIconColor = appColors.textSecondary,
+                unselectedTextColor = appColors.textSecondary,
+                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+            )
+        )
+        NavigationRailItem(
+            selected = selectedTab == 3,
+            onClick = { onTabSelected(3) },
+            icon = { Icon(Icons.Default.Info, null, modifier = Modifier.size(24.dp)) },
+            label = { Text("Status", fontSize = 10.sp) },
+            colors = NavigationRailItemDefaults.colors(
+                selectedIconColor = AppPrimary,
+                selectedTextColor = appColors.textPrimary,
+                unselectedIconColor = appColors.textSecondary,
+                unselectedTextColor = appColors.textSecondary,
+                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+            )
+        )
+        Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
 fun NavItem(title: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
     val appColors = LocalAppColors.current
     Column(
@@ -410,4 +538,3 @@ fun NavItem(title: String, icon: ImageVector, isSelected: Boolean, onClick: () -
         Text(title, color = if (isSelected) appColors.textPrimary else appColors.textSecondary, fontSize = 10.sp)
     }
 }
-

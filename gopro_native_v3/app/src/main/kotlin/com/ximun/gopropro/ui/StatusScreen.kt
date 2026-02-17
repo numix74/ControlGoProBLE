@@ -24,7 +24,7 @@ import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
 
 @Composable
-fun StatusScreen(state: CameraUiState) {
+fun StatusScreen(state: CameraUiState, isLandscape: Boolean = false) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -49,7 +49,7 @@ fun StatusScreen(state: CameraUiState) {
         // Liste Infos Système
         SystemInfoList(state)
         
-        Spacer(modifier = Modifier.height(80.dp)) // Spacer pour le bas
+        Spacer(modifier = Modifier.height(if (isLandscape) 24.dp else 80.dp))
     }
 }
 

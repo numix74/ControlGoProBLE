@@ -25,6 +25,7 @@ import com.ximun.gopropro.viewmodel.CameraUiState
 @Composable
 fun PresetsScreen(
     state: CameraUiState,
+    isLandscape: Boolean = false,
     onLoadPreset: (Int) -> Unit
 ) {
     Column(

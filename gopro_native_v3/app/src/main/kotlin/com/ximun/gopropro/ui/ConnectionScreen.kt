@@ -33,8 +33,10 @@ import kotlinx.coroutines.delay
 fun ConnectionScreen(
     isBleReady: Boolean,
     isBluetoothEnabled: Boolean,
+    windowSizeClass: androidx.compose.material3.windowsizeclass.WindowSizeClass? = null,
     onConnect: () -> Unit
 ) {
+    val isLandscape = windowSizeClass?.isLandscape ?: false
     var isScanning by remember { mutableStateOf(false) }
     
     // Animation pour le "ping" du logo Bluetooth
@@ -79,7 +81,10 @@ fun ConnectionScreen(
         )
 
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (isLandscape) Modifier.widthIn(max = 480.dp) else Modifier)
+                .align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {

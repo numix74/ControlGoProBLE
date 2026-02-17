@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
+
 package com.ximun.gopropro.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -6,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -13,6 +17,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.ui.theme.LocalAppColors
 import com.ximun.gopropro.ui.theme.PrimaryTeal
+
+/** true si l'écran est en mode paysage (landscape) ou tablette */
+val WindowSizeClass.isLandscape: Boolean
+    get() = widthSizeClass != WindowWidthSizeClass.Compact
 
 @Composable
 fun HeaderSection(

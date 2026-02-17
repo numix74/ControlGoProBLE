@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     state: CameraUiState,
+    isLandscape: Boolean = false,
     onUpdateSetting: (Int, Int) -> Unit,
     onSyncTime: () -> Unit = {},
     onReboot: () -> Unit = {},
@@ -149,7 +150,7 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(if (isLandscape) 24.dp else 80.dp))
     }
 }
 

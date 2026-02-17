@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
+
 package com.ximun.gopropro
 
 import android.bluetooth.BluetoothAdapter
@@ -10,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
@@ -71,16 +74,19 @@ class MainActivity : ComponentActivity() {
         // UI Compose
         setContent {
             val state by viewModel.uiState.collectAsState()
+            val windowSizeClass = calculateWindowSizeClass(this)
 
             GoProTheme(darkTheme = state.isDarkMode) {
                 if (!state.isConnected) {
                     ConnectionScreen(
                         isBleReady = state.isBleReady,
                         isBluetoothEnabled = state.isBluetoothEnabled,
+                        windowSizeClass = windowSizeClass,
                         onConnect = { connectionManager.checkPermissionsAndScan(this, requestPermissionLauncher) }
                     )
                 } else {
                     DashboardLayout(
+                        windowSizeClass = windowSizeClass,
                         viewModel = viewModel,
                         onRecordToggle = { handleRecordToggle() },
                         onHilight = { connectionManager.sendHilight() },
