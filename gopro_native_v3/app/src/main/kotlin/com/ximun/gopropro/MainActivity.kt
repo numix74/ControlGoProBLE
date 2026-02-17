@@ -92,8 +92,14 @@ class MainActivity : ComponentActivity() {
                         onAdjustTimer = { delta -> viewModel.adjustTimer(delta) },
                         onSnapTimer = { viewModel.snapTimerToFive() },
                         onTabSelected = { index -> viewModel.setTab(index) },
-                        onUpdateSetting = { id, value -> connectionManager.updateSetting(id, value) },
-                        onLoadPreset = { connectionManager.loadPreset(it) },
+                        onUpdateSetting = { id, value ->
+                            viewModel.updateSettings(mapOf(id to value))
+                            connectionManager.updateSetting(id, value)
+                        },
+                        onLoadPreset = { presetId ->
+                            viewModel.updateCurrentPresetId(presetId)
+                            connectionManager.loadPreset(presetId)
+                        },
                         onToggleDarkMode = { viewModel.toggleDarkMode() },
                         onToggleBubble = { viewModel.toggleBubble() }
                     )

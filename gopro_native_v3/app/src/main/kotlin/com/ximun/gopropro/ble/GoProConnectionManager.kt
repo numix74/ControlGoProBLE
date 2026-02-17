@@ -312,6 +312,14 @@ class GoProConnectionManager(
         payload[4] = ((presetId shr 8) and 0xFF).toByte()
         payload[5] = (presetId and 0xFF).toByte()
         bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, payload)
+
+        // Re-query les settings et capabilities après changement de preset
+        lifecycleScope.launch(Dispatchers.IO) {
+            delay(1000)
+            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()))
+            delay(1000)
+            bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte()))
+        }
     }
 
     fun updateSetting(settingId: Int, value: Int) {
@@ -445,9 +453,20 @@ class GoProConnectionManager(
         val settingId = data[0].toInt() and 0xFF
         val status = if (data.size > 1) data[1].toInt() and 0xFF else -1
         if (status == 0) {
-            Log.d(TAG, "Setting 0x${settingId.toString(16).uppercase()} appliqué")
+            Log.d(TAG, "Setting 0x${settingId.toString(16).uppercase()} appliqué, re-query capabilities")
+            // Re-query uniquement les capabilities (pas les settings — l'update optimiste suffit)
+            // Les capabilities changent quand un setting change (ex: changer résolution → nouveaux FPS dispo)
+            lifecycleScope.launch(Dispatchers.IO) {
+                delay(500)
+                bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte()))
+            }
         } else {
             Log.w(TAG, "Setting 0x${settingId.toString(16).uppercase()} refusé (status=$status)")
+            // En cas de rejet, re-query les settings pour corriger l'update optimiste
+            lifecycleScope.launch(Dispatchers.IO) {
+                delay(300)
+                bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()))
+            }
         }
     }
 
@@ -533,7 +552,6 @@ class GoProConnectionManager(
                         GoProConstants.STATUS_ID_OVERHEATING -> viewModel.updateTempStatus(convertToInt(value) == 1, false)
                         GoProConstants.STATUS_ID_ACTIVE_PRESET -> {
                             val v = convertToInt(value)
-                            viewModel.updatePreset("Mode $v")
                             viewModel.updateCurrentPresetId(v)
                         }
                     }

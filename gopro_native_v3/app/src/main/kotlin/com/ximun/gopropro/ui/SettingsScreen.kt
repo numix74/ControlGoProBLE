@@ -471,7 +471,6 @@ fun SettingDropdown(
     val currentLabel = currentValue?.let {
         GoProSettingsMappings.getLabel(settingId, it)
     } ?: "..."
-
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Box {
             Surface(

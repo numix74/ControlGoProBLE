@@ -13,11 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.Immutable
-import android.util.Log
 import com.ximun.gopropro.proto.GoProProtos
 
-@Immutable
 data class CameraUiState(
     val isConnected: Boolean = false,
     val isBleReady: Boolean = false,
@@ -126,7 +123,7 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateSettings(newSettings: Map<Int, Int>) {
-        _uiState.update { it.copy(settings = it.settings + newSettings) }
+        _uiState.update { old -> old.copy(settings = old.settings + newSettings) }
     }
 
     fun updateCapabilities(newCapabilities: Map<Int, List<Int>>) {
@@ -242,7 +239,6 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateStorage(space: String) {
-        Log.d("GoProViewModel", "Update storage: $space")
         _uiState.update { it.copy(storageSpace = space) }
     }
 
