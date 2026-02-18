@@ -62,6 +62,7 @@ class GoProConnectionManager(
     private var isDestroyed = false
     private var wasConnectedBefore = false
     private var lastConnectedTimestamp = 0L
+    @Volatile private var lastCommandSentAt: Long = 0L
     private val bleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -239,8 +240,14 @@ class GoProConnectionManager(
 
     // ── Commandes de haut niveau ─────────────────────────────────────
 
-    fun sendCommand(charUuid: java.util.UUID, payload: ByteArray) {
+    /** Envoie une commande BLE et met à jour le timestamp (évite un keep-alive inutile). */
+    private fun bleCommand(charUuid: java.util.UUID, payload: ByteArray) {
+        lastCommandSentAt = System.currentTimeMillis()
         bleManager.sendGoProCommand(charUuid, payload)
+    }
+
+    fun sendCommand(charUuid: java.util.UUID, payload: ByteArray) {
+        bleCommand(charUuid, payload)
     }
 
     /**
@@ -253,14 +260,14 @@ class GoProConnectionManager(
     }
 
     fun sendShutterCommand(enable: Boolean) {
-        bleManager.sendGoProCommand(
+        bleCommand(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_SET_SHUTTER.toByte(), 1, if (enable) 1 else 0)
         )
     }
 
     fun sendHilight() {
-        bleManager.sendGoProCommand(
+        bleCommand(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_HILIGHT.toByte())
         )
@@ -272,14 +279,14 @@ class GoProConnectionManager(
     fun sendSleep() {
         wasConnectedBefore = false
         reconnectJob?.cancel()
-        bleManager.sendGoProCommand(
+        bleCommand(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_SLEEP.toByte())
         )
     }
 
     fun sendReboot() {
-        bleManager.sendGoProCommand(
+        bleCommand(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_REBOOT.toByte())
         )
@@ -300,7 +307,7 @@ class GoProConnectionManager(
             (year shr 8).toByte(), (year and 0xFF).toByte(),
             month, day, hour, min, sec
         )
-        bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, payload)
+        bleCommand(GoProConstants.COMMAND_CHAR_UUID, payload)
     }
 
     fun loadPreset(presetId: Int) {
@@ -311,7 +318,7 @@ class GoProConnectionManager(
         payload[3] = ((presetId shr 16) and 0xFF).toByte()
         payload[4] = ((presetId shr 8) and 0xFF).toByte()
         payload[5] = (presetId and 0xFF).toByte()
-        bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, payload)
+        bleCommand(GoProConstants.COMMAND_CHAR_UUID, payload)
 
         // Re-query les settings et capabilities après changement de preset
         lifecycleScope.launch(Dispatchers.IO) {
@@ -323,7 +330,7 @@ class GoProConnectionManager(
     }
 
     fun updateSetting(settingId: Int, value: Int) {
-        bleManager.sendGoProCommand(
+        bleCommand(
             GoProConstants.SETTINGS_CHAR_UUID,
             byteArrayOf(settingId.toByte(), 1, value.toByte())
         )
@@ -333,15 +340,17 @@ class GoProConnectionManager(
 
     private fun startKeepAlive() {
         keepAliveJob?.cancel()
+        lastCommandSentAt = System.currentTimeMillis()
         keepAliveJob = lifecycleScope.launch {
             while (true) {
-                if (viewModel.uiState.value.isConnected) {
+                delay(3000)
+                if (viewModel.uiState.value.isConnected &&
+                    System.currentTimeMillis() - lastCommandSentAt >= 3000L) {
                     bleManager.sendGoProCommand(
                         GoProConstants.COMMAND_CHAR_UUID,
                         byteArrayOf(GoProConstants.CMD_KEEP_ALIVE.toByte(), 1, GoProConstants.CMD_KEEP_ALIVE_VAL.toByte())
                     )
                 }
-                delay(3000)
             }
         }
     }
