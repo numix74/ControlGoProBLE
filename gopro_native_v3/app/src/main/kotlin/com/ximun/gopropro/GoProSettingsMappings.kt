@@ -634,6 +634,165 @@ object GoProSettingsMappings {
     }
 
     /**
+     * Retourne le @StringRes pour le nom du setting (Phase B i18n).
+     * Retourne null pour les settings inconnus (le caller affichera "Setting %d").
+     */
+    @androidx.annotation.StringRes
+    fun getSettingNameRes(settingId: Int): Int? = when (settingId) {
+        2 -> R.string.setting_name_resolution
+        3 -> R.string.setting_name_fps
+        5 -> R.string.setting_name_timelapse_rate
+        30 -> R.string.setting_name_photo_timelapse_rate
+        32 -> R.string.setting_name_night_lapse_rate
+        59 -> R.string.setting_name_auto_power_down
+        83 -> R.string.setting_name_gps
+        88 -> R.string.setting_name_lcd_brightness
+        91 -> R.string.setting_name_leds
+        108 -> R.string.setting_name_aspect_ratio
+        111 -> R.string.setting_name_timewarp_speed
+        121 -> R.string.setting_name_lens
+        122 -> R.string.setting_name_photo_lens
+        123 -> R.string.setting_name_timelapse_lens
+        125 -> R.string.setting_name_photo_output
+        128 -> R.string.setting_name_media_format
+        134 -> R.string.setting_name_anti_flicker
+        135 -> R.string.setting_name_hypersmooth
+        150 -> R.string.setting_name_video_horizon
+        151 -> R.string.setting_name_photo_horizon
+        167 -> R.string.setting_name_hindsight
+        171 -> R.string.setting_name_photo_interval
+        172 -> R.string.setting_name_interval_duration
+        173 -> R.string.setting_name_perf_mode
+        175 -> R.string.setting_name_control_mode
+        176 -> R.string.setting_name_easy_speed
+        177 -> R.string.setting_name_night_photo_setting
+        178 -> R.string.setting_name_wireless_band
+        179 -> R.string.setting_name_star_trails_length
+        180 -> R.string.setting_name_system_video_mode
+        182 -> R.string.setting_name_bit_rate
+        183 -> R.string.setting_name_bit_depth
+        184 -> R.string.setting_name_video_profile
+        186 -> R.string.setting_name_video_easy
+        187 -> R.string.setting_name_lapse_mode
+        189 -> R.string.setting_name_max_lens_mod
+        190 -> R.string.setting_name_max_lens_mod_enable
+        191 -> R.string.setting_name_easy_night
+        192 -> R.string.setting_name_multi_shot_ratio
+        193 -> R.string.setting_name_framing
+        194 -> R.string.setting_name_camera_mode
+        216 -> R.string.setting_name_beep_volume
+        219 -> R.string.setting_name_screen_saver
+        223 -> R.string.setting_name_gopro_language
+        227 -> R.string.setting_name_photo_mode
+        232 -> R.string.setting_name_video_framing
+        233 -> R.string.setting_name_multi_shot_framing
+        234 -> R.string.setting_name_frame_rate
+        else -> null
+    }
+
+    /**
+     * Retourne le @StringRes pour une valeur de setting (Phase B i18n).
+     * Retourne null pour les valeurs purement techniques (4K, 60fps…) — le caller
+     * utilisera alors getLabel() comme fallback.
+     */
+    @androidx.annotation.StringRes
+    fun getLabelRes(settingId: Int, value: Int): Int? = when (settingId) {
+        59 -> when (value) { // Auto Power Down
+            0 -> R.string.setting_val_never
+            else -> null
+        }
+        83 -> when (value) { // GPS
+            0 -> R.string.setting_val_disabled
+            1 -> R.string.setting_val_enabled
+            else -> null
+        }
+        128 -> when (value) { // Media Format
+            13 -> R.string.setting_val_video_timelapse
+            20 -> R.string.setting_val_photo_timelapse
+            21 -> R.string.setting_val_night_photo_timelapse
+            26 -> R.string.setting_val_night_video_timelapse
+            else -> null
+        }
+        150, 151 -> when (value) { // Horizon Leveling
+            2 -> R.string.setting_val_locked
+            else -> null
+        }
+        172 -> when (value) { // Photo Interval Duration
+            7 -> R.string.setting_val_1_hour
+            8 -> R.string.setting_val_2_hours
+            9 -> R.string.setting_val_3_hours
+            else -> null
+        }
+        173 -> when (value) { // Video Performance Mode
+            0 -> R.string.setting_val_max_performance
+            1 -> R.string.setting_val_extended_battery
+            2 -> R.string.setting_val_tripod
+            else -> null
+        }
+        179 -> when (value) { // Star Trails Length
+            1 -> R.string.setting_val_short
+            else -> null
+        }
+        180 -> when (value) { // System Video Mode
+            0 -> R.string.setting_val_max_quality
+            101 -> R.string.setting_val_extended_battery
+            102 -> R.string.setting_val_long_battery
+            111 -> R.string.setting_val_standard_quality
+            112 -> R.string.setting_val_basic_quality
+            else -> null
+        }
+        186 -> when (value) { // Video Easy Mode
+            0 -> R.string.setting_val_max_quality
+            1 -> R.string.setting_val_standard_quality
+            2 -> R.string.setting_val_basic_quality
+            3 -> R.string.setting_val_standard_video
+            4 -> R.string.setting_val_hdr_video
+            else -> null
+        }
+        187 -> when (value) { // Lapse Mode
+            1 -> R.string.setting_val_star_trails
+            3 -> R.string.setting_val_vehicle_lights
+            5 -> R.string.setting_val_max_star_trails
+            7 -> R.string.setting_val_max_vehicle_lights
+            8 -> R.string.setting_val_video_timelapse
+            9 -> R.string.setting_val_night_video_timelapse
+            else -> null
+        }
+        189 -> when (value) { // Max Lens Mod
+            0 -> R.string.setting_val_none
+            5 -> R.string.setting_val_anamorphic
+            10 -> R.string.setting_val_standard_lens
+            100 -> R.string.setting_val_auto_detect
+            else -> null
+        }
+        191 -> when (value) { // Easy Night Photo
+            1 -> R.string.setting_val_night_photo
+            2 -> R.string.setting_val_burst
+            else -> null
+        }
+        194 -> when (value) { // Camera Mode
+            0 -> R.string.setting_val_single_lens
+            else -> null
+        }
+        216 -> when (value) { // Beep Volume
+            70 -> R.string.setting_val_low
+            85 -> R.string.setting_val_medium
+            100 -> R.string.setting_val_high_vol
+            else -> null
+        }
+        219 -> when (value) { // Screen Saver
+            0 -> R.string.setting_val_never
+            else -> null
+        }
+        227 -> when (value) { // Photo Mode
+            1 -> R.string.setting_val_night_photo
+            2 -> R.string.setting_val_burst
+            else -> null
+        }
+        else -> null
+    }
+
+    /**
      * Retourne le nom du setting pour l'affichage
      */
     fun getSettingName(settingId: Int): String {

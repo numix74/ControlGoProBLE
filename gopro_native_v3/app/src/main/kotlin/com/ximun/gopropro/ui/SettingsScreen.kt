@@ -535,8 +535,13 @@ fun RenderSetting(
         currentVal != null -> listOf(currentVal)
         else -> emptyList()
     }
+    // Résolution du nom du setting via @StringRes (Phase B)
+    val settingNameRes = GoProSettingsMappings.getSettingNameRes(settingId)
+    val settingLabel = settingNameRes?.let { stringResource(it) }
+        ?: stringResource(R.string.setting_name_unknown, settingId)
+
     SettingDropdown(
-        label = GoProSettingsMappings.getSettingName(settingId),
+        label = settingLabel,
         settingId = settingId,
         currentValue = currentVal,
         capabilities = caps,
@@ -554,12 +559,20 @@ fun SettingDropdown(
     onValueChange: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val options = GoProSettingsMappings.getAvailableOptions(settingId, capabilities)
+    // Options de la liste déroulante avec résolution i18n (Phase B)
+    val options: List<Pair<Int, String>> = capabilities.map { v ->
+        v to (GoProSettingsMappings.getLabelRes(settingId, v)
+            ?.let { stringResource(it) }
+            ?: GoProSettingsMappings.getLabel(settingId, v))
+    }
     val hasOptions = options.isNotEmpty()
     val appColors = LocalAppColors.current
 
-    val currentLabel = currentValue?.let {
-        GoProSettingsMappings.getLabel(settingId, it)
+    // Résolution de la valeur courante (Phase B) : @StringRes si disponible, sinon fallback String
+    val currentLabel = currentValue?.let { v ->
+        GoProSettingsMappings.getLabelRes(settingId, v)
+            ?.let { stringResource(it) }
+            ?: GoProSettingsMappings.getLabel(settingId, v)
     } ?: "..."
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Box {

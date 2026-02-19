@@ -152,8 +152,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        connectionManager.destroy()
-        bubbleController.stopAndCleanup()
+        if (isChangingConfigurations) {
+            // Recréation pour un changement de config (langue, rotation…) :
+            // on conserve le bleManager pour ne pas couper la connexion GoPro.
+            connectionManager.prepareForRecreation()
+        } else {
+            connectionManager.destroy()
+            bubbleController.stopAndCleanup()
+        }
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
     }
 }

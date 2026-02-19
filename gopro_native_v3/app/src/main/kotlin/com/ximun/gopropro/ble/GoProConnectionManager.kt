@@ -44,6 +44,13 @@ class GoProConnectionManager(
         private const val PREFS_NAME = "gopro_prefs"
         private const val KEY_LAST_MAC = "last_device_mac"
 
+        /**
+         * BleManager conservé entre deux recréations d'Activity (changement de langue, rotation…).
+         * Permet de ne pas fermer la connexion GATT lors d'un recreate().
+         */
+        @Volatile
+        internal var retainedBleManager: GoProBleManager? = null
+
         /** Mapping setting 59 value → durée en secondes (-1 = jamais) */
         private val AUTO_OFF_DURATIONS = mapOf(
             0 to -1,   // Jamais
@@ -77,8 +84,7 @@ class GoProConnectionManager(
     fun initialize() {
         bleScope.launch {
             withContext(Dispatchers.Main) {
-                bleManager = GoProBleManager(context)
-                bleManager.callback = object : GoProBleManager.GoProBleCallback {
+                val callback = object : GoProBleManager.GoProBleCallback {
                     override fun onMessageReceived(charUuid: String, data: ByteArray) {
                         lifecycleScope.launch(Dispatchers.Default) {
                             processBleMessage(charUuid, data)
@@ -106,8 +112,38 @@ class GoProConnectionManager(
                         }
                     }
                 }
+
+                // Réutiliser le bleManager existant si l'Activity a été recréée (changement de langue, rotation…)
+                val retained = retainedBleManager
+                if (retained != null && viewModel.uiState.value.isConnected) {
+                    Log.d(TAG, "Réutilisation du bleManager retenu (recréation Activity)")
+                    bleManager = retained
+                    retainedBleManager = null
+                    bleManager.callback = callback
+                    wasConnectedBefore = true
+                    // Relancer le keep-alive sur le nouveau lifecycleScope
+                    startKeepAlive()
+                } else {
+                    retainedBleManager = null
+                    bleManager = GoProBleManager(context)
+                    bleManager.callback = callback
+                }
                 viewModel.setBleReady(true)
             }
+        }
+    }
+
+    /**
+     * À appeler depuis onDestroy() quand isChangingConfigurations = true.
+     * Conserve la connexion BLE active en sauvegardant le bleManager dans le companion object,
+     * sans fermer le GATT.
+     */
+    fun prepareForRecreation() {
+        Log.d(TAG, "prepareForRecreation: conservation du bleManager pour la nouvelle Activity")
+        keepAliveJob?.cancel()
+        reconnectJob?.cancel()
+        if (::bleManager.isInitialized) {
+            retainedBleManager = bleManager
         }
     }
 
@@ -115,6 +151,7 @@ class GoProConnectionManager(
         isDestroyed = true
         keepAliveJob?.cancel()
         reconnectJob?.cancel()
+        retainedBleManager = null
         if (::bleManager.isInitialized) {
             bleManager.disconnect().enqueue()
             bleManager.close()
