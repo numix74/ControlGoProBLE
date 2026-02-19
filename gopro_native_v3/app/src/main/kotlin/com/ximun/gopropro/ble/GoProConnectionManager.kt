@@ -125,7 +125,7 @@ class GoProConnectionManager(
                     startKeepAlive()
                 } else {
                     retainedBleManager = null
-                    bleManager = GoProBleManager(context)
+                    bleManager = GoProBleManager(context.applicationContext)
                     bleManager.callback = callback
                 }
                 viewModel.setBleReady(true)
