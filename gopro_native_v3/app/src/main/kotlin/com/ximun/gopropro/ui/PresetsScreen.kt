@@ -13,10 +13,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.GoProPresetMappings
+import com.ximun.gopropro.R
 import com.ximun.gopropro.proto.GoProProtos
 import com.ximun.gopropro.ui.theme.AppCard
 import com.ximun.gopropro.ui.theme.PrimaryTeal
@@ -33,7 +35,10 @@ fun PresetsScreen(
             .fillMaxSize()
             .padding(20.dp)
     ) {
-        HeaderSection(title = "PRESETS", subtitle = "MODES RAPIDES")
+        HeaderSection(
+            title = stringResource(R.string.presets_title),
+            subtitle = stringResource(R.string.presets_subtitle)
+        )
         Spacer(modifier = Modifier.height(24.dp))
 
         if (state.presetGroups.isEmpty()) {
@@ -60,7 +65,12 @@ fun PresetGroupSection(
     onLoadPreset: (Int) -> Unit
 ) {
     val groupId = if (group.hasId()) group.id.number else 0
-    val groupTitle = GoProPresetMappings.getGroupTitle(groupId)
+    val groupTitleRes = GoProPresetMappings.getGroupTitleRes(groupId)
+    val groupTitle = if (groupId == 0 || !listOf(1000, 1001, 1002).contains(groupId)) {
+        stringResource(R.string.preset_group_unknown, groupId)
+    } else {
+        stringResource(groupTitleRes)
+    }
     val groupIcon = GoProPresetMappings.getGroupIcon(groupId)
 
     Column {
@@ -101,8 +111,10 @@ fun PresetCard(
 
     val presetName = when {
         preset.hasCustomName() -> preset.customName
-        preset.hasTitleId() -> GoProPresetMappings.getPresetTitle(preset.titleId.number) ?: "Preset $index"
-        else -> "Preset $index"
+        preset.hasTitleId() ->
+            GoProPresetMappings.getPresetTitle(preset.titleId.number)
+                ?.let { stringResource(it) } ?: stringResource(R.string.presets_item_fallback, index)
+        else -> stringResource(R.string.presets_item_fallback, index)
     }
     val settingsLine = GoProPresetMappings.formatPresetSettings(preset.settingArrayList)
 

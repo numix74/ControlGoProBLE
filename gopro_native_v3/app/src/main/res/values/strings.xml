@@ -1,3 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">GoPro V3 Pro</string>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- NAVIGATION                                              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <string name="nav_tab_control">Controle</string>
+    <string name="nav_tab_settings">Réglages</string>
+    <string name="nav_tab_presets">Presets</string>
+    <string name="nav_tab_status">Status</string>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- DASHBOARD                                               -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <string name="dashboard_title">STUDIO PRO</string>
+    <string name="dashboard_subtitle">LIAISON DIRECTE</string>
+    <string name="dashboard_btn_sleep">Veille</string>
+    <string name="dashboard_btn_disconnect">Déconnexion</string>
+    <string name="dashboard_stat_battery">BATTERIE</string>
+    <string name="dashboard_stat_storage">STOCKAGE</string>
+    <string name="dashboard_timer_countdown">REBOURS</string>
+    <string name="dashboard_timer_duration">DURÉE</string>
+    <string name="dashboard_btn_start_capture">START CAPTURE</string>
+    <string name="dashboard_btn_stop_capture">STOP CAPTURE</string>
+    <string name="dashboard_btn_hilight">Hilight</string>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CONNEXION                                               -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <string name="connection_title">GOPRO STUDIO</string>
+    <string name="connection_subtitle">BLE INTERFACE PRO</string>
+    <string name="connection_status_label">STATUS CAMÉRA</string>
+    <string name="connection_status_bt_off">BT DÉSACTIVÉ</string>
+    <string name="connection_status_ready">PRÊT</string>
+    <string name="connection_status_init">INITIALISATION…</string>
+    <string name="connection_msg_bt_off">Le Bluetooth est désactivé. Activez-le dans les paramètres de votre téléphone.</string>
+    <string name="connection_msg_bt_ready">Le service Bluetooth est prêt. Vous pouvez lancer la connexion.</string>
+    <string name="connection_msg_bt_init">Veuillez patienter pendant l\'initialisation du service Bluetooth…</string>
+    <string name="connection_btn_scan">SCAN…</string>
+    <string name="connection_btn_connect">CONNECTER</string>
+    <string name="connection_footer">GOPRO CONTROLLER V4.2</string>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STATUS                                                  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <string name="status_title">SYSTEM STATUS</string>
+    <string name="status_subtitle">DIAGNOSTIC TEMPS RÉEL</string>
+    <string name="status_battery_section">ALIMENTATION</string>
+    <string name="status_battery_charging">EN CHARGE</string>
+    <string name="status_battery_critical">CRITIQUE</string>
+    <string name="status_battery_nominal">NOMINAL</string>
+    <string name="status_battery_ac">SECTEUR</string>
+    <string name="status_battery_internal">INTERNE</string>
+    <string name="status_storage_section">STATISTIQUES STOCKAGE</string>
+    <string name="status_storage_remaining">RESTANT</string>
+    <string name="status_storage_full_pct">%d%% PLEIN</string>
+    <string name="status_storage_card_label">CARTE %s</string>
+    <string name="status_storage_sd_type">SD CARD (V30)</string>
+    <string name="status_info_system_state">État Système</string>
+    <string name="status_info_recording">ENREGISTREMENT</string>
+    <string name="status_info_ready">PRÊT</string>
+    <string name="status_info_temperature">Température</string>
+    <string name="status_info_overheat">SURCHAUFFE</string>
+    <string name="status_info_danger">DANGER</string>
+    <string name="status_info_power">Alimentation</string>
+    <string name="status_info_photos">Photos Restantes</string>
+    <string name="status_info_videos">Vidéos sur Carte</string>
+    <string name="status_info_sd_capacity">Capacité SD</string>
+    <string name="status_info_time_remaining">Temps Restant</string>
+    <string name="status_info_active_preset">Preset Actif</string>
+    <string name="status_info_firmware">Firmware</string>
+    <string name="status_info_serial">N° Série</string>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- RÉGLAGES                                                -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <string name="settings_title">RÉGLAGES</string>
+    <string name="settings_subtitle">PARAMÈTRES DE LA CAMÉRA</string>
+    <string name="settings_section_mode">MODE ACTIF</string>
+    <string name="settings_section_system">PARAMÈTRES SYSTÈME</string>
+    <string name="settings_dark_mode_label">Mode Clair</string>
+    <string name="settings_light_mode_label">Mode Sombre</string>
+    <string name="settings_bubble_label">Bulle Flottante</string>
+    <string name="settings_sync_clock_label">Sync Horloge</string>
+    <string name="settings_sync_clock_action">Synchroniser</string>
+    <string name="settings_sync_clock_done">✓ Synchronisé</string>
+    <string name="settings_reboot_label">Redémarrer</string>
+    <string name="settings_reboot_action">Redémarrer</string>
+    <string name="settings_reboot_in_progress">Redémarrage…</string>
+    <string name="settings_language_label">Langue</string>
+    <!-- Noms de langues : toujours dans leur langue native, identiques dans tous les fichiers -->
+    <string name="lang_system">Automatique (système)</string>
+    <string name="lang_fr">Français</string>
+    <string name="lang_en">English</string>
+    <string name="lang_es">Español</string>
+    <string name="lang_eu">Euskara</string>
+    <string name="lang_ca">Català</string>
+    <string name="lang_de">Deutsch</string>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- PRESETS                                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <string name="presets_title">PRESETS</string>
+    <string name="presets_subtitle">MODES RAPIDES</string>
+    <string name="presets_item_fallback">Preset %d</string>
+
+    <!-- Groupes de presets -->
+    <string name="preset_group_video">VIDÉO</string>
+    <string name="preset_group_photo">PHOTO</string>
+    <string name="preset_group_timelapse">TIMELAPSE</string>
+    <string name="preset_group_unknown">GROUPE %d</string>
+
+    <!-- Titres de presets (EnumPresetTitle) -->
+    <string name="preset_title_0">Activité</string>
+    <string name="preset_title_1">Standard</string>
+    <string name="preset_title_2">Cinématique</string>
+    <string name="preset_title_3">Photo</string>
+    <string name="preset_title_4">Live Burst</string>
+    <string name="preset_title_5">Rafale</string>
+    <string name="preset_title_6">Nuit</string>
+    <string name="preset_title_7">TimeWarp</string>
+    <string name="preset_title_8">Accéléré</string>
+    <string name="preset_title_9">Nuit en accéléré</string>
+    <string name="preset_title_10">Vidéo</string>
+    <string name="preset_title_11">Ralenti</string>
+    <string name="preset_title_13">Photo</string>
+    <string name="preset_title_14">Panorama</string>
+    <string name="preset_title_15">Rafale</string>
+    <string name="preset_title_16">TimeWarp</string>
+    <string name="preset_title_17">Accéléré</string>
+    <string name="preset_title_18">Personnalisé</string>
+    <string name="preset_title_19">Aérien</string>
+    <string name="preset_title_20">Vélo</string>
+    <string name="preset_title_21">Épique</string>
+    <string name="preset_title_22">Intérieur</string>
+    <string name="preset_title_23">Moto</string>
+    <string name="preset_title_24">Monté</string>
+    <string name="preset_title_25">Extérieur</string>
+    <string name="preset_title_26">POV</string>
+    <string name="preset_title_27">Selfie</string>
+    <string name="preset_title_28">Skate</string>
+    <string name="preset_title_29">Neige</string>
+    <string name="preset_title_30">Sentier</string>
+    <string name="preset_title_31">Voyage</string>
+    <string name="preset_title_32">Eau</string>
+    <string name="preset_title_33">Boucle</string>
+    <string name="preset_title_34">Étoiles</string>
+    <string name="preset_title_35">Action</string>
+    <string name="preset_title_36">Suivi</string>
+    <string name="preset_title_37">Surf</string>
+    <string name="preset_title_38">Ville</string>
+    <string name="preset_title_39">Mouvement</string>
+    <string name="preset_title_40">Harnais</string>
+    <string name="preset_title_41">Casque</string>
+    <string name="preset_title_42">Bouche</string>
+    <string name="preset_title_43">Cinématique personnalisé</string>
+    <string name="preset_title_44">Vlog</string>
+    <string name="preset_title_45">FPV</string>
+    <string name="preset_title_46">HDR</string>
+    <string name="preset_title_47">Paysage</string>
+    <string name="preset_title_48">Log</string>
+    <string name="preset_title_49">Ralenti personnalisé</string>
+    <string name="preset_title_50">Trépied</string>
+    <string name="preset_title_58">Basique</string>
+    <string name="preset_title_59">Ultra Ralenti</string>
+    <string name="preset_title_60">Standard Endurance</string>
+    <string name="preset_title_61">Activité Endurance</string>
+    <string name="preset_title_62">Cinématique Endurance</string>
+    <string name="preset_title_63">Ralenti Endurance</string>
+    <string name="preset_title_64">Stationnaire 1</string>
+    <string name="preset_title_65">Stationnaire 2</string>
+    <string name="preset_title_66">Stationnaire 3</string>
+    <string name="preset_title_67">Stationnaire 4</string>
+    <string name="preset_title_68">Vidéo Simple</string>
+    <string name="preset_title_69">TimeWarp Simple</string>
+    <string name="preset_title_70">Super Photo</string>
+    <string name="preset_title_71">Photo de Nuit</string>
+    <string name="preset_title_72">Vidéo Endurance</string>
+    <string name="preset_title_73">Qualité max</string>
+    <string name="preset_title_74">Batterie étendue</string>
+    <string name="preset_title_75">Batterie longue</string>
+    <string name="preset_title_76">Filés d\'étoiles</string>
+    <string name="preset_title_77">Light Painting</string>
+    <string name="preset_title_78">Feux de véhicules</string>
+    <string name="preset_title_79">Plein écran</string>
+    <string name="preset_title_80">Vidéo avec objectif Max</string>
+    <string name="preset_title_81">TimeWarp avec objectif Max</string>
+    <string name="preset_title_82">Qualité standard</string>
+    <string name="preset_title_83">Qualité basique</string>
+    <string name="preset_title_93">Qualité maximale</string>
+    <string name="preset_title_94">Personnalisé</string>
+    <string name="preset_title_99">Standard facile</string>
+    <string name="preset_title_100">HDR facile</string>
+    <string name="preset_title_106">Rafale Ralenti</string>
+    <string name="preset_title_125">Vidéo 4:3</string>
+    <string name="preset_title_126">Vidéo 16:9</string>
+    <string name="preset_title_127">Ralenti 16:9</string>
+    <string name="preset_title_131">Accéléré Vidéo</string>
+    <string name="preset_title_132">Accéléré Photo</string>
+    <string name="preset_title_133">Nuit en accéléré Vidéo</string>
+    <string name="preset_title_134">Nuit en accéléré Photo</string>
 </resources>

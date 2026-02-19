@@ -24,9 +24,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ximun.gopropro.R
 import kotlinx.coroutines.delay
 
 @Composable
@@ -38,7 +40,7 @@ fun ConnectionScreen(
 ) {
     val isLandscape = windowSizeClass?.isLandscape ?: false
     var isScanning by remember { mutableStateOf(false) }
-    
+
     // Animation pour le "ping" du logo Bluetooth
     val infiniteTransition = rememberInfiniteTransition(label = "ping")
     val pingScale by infiniteTransition.animateFloat(
@@ -100,7 +102,7 @@ fun ConnectionScreen(
                             .border(1.dp, Color(0xFF00B0FF), CircleShape)
                     )
                 }
-                
+
                 Surface(
                     modifier = Modifier.size(80.dp),
                     shape = CircleShape,
@@ -116,26 +118,26 @@ fun ConnectionScreen(
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             Text(
-                text = "GOPRO STUDIO",
+                text = stringResource(R.string.connection_title),
                 color = Color.White,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 2.sp
             )
-            
+
             Text(
-                text = "BLE INTERFACE PRO",
+                text = stringResource(R.string.connection_subtitle),
                 color = Color(0xFF00B0FF),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 4.sp,
                 modifier = Modifier.alpha(0.8f)
             )
-            
+
             Spacer(modifier = Modifier.height(48.dp))
 
             // Card Status
@@ -151,7 +153,7 @@ fun ConnectionScreen(
                 ) {
                     Column {
                         Text(
-                            text = "STATUS CAMÉRA",
+                            text = stringResource(R.string.connection_status_label),
                             color = Color.White.copy(alpha = 0.5f),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
@@ -175,9 +177,9 @@ fun ConnectionScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = when {
-                                    !isBluetoothEnabled -> "BT DÉSACTIVÉ"
-                                    isBleReady -> "PRÊT"
-                                    else -> "INITIALISATION..."
+                                    !isBluetoothEnabled -> stringResource(R.string.connection_status_bt_off)
+                                    isBleReady -> stringResource(R.string.connection_status_ready)
+                                    else -> stringResource(R.string.connection_status_init)
                                 },
                                 color = Color.White,
                                 fontSize = 24.sp,
@@ -188,17 +190,17 @@ fun ConnectionScreen(
 
                     Text(
                         text = when {
-                            !isBluetoothEnabled -> "Le Bluetooth est désactivé. Activez-le dans les paramètres de votre téléphone."
-                            isBleReady -> "Le service Bluetooth est prêt. Vous pouvez lancer la connexion."
-                            else -> "Veuillez patienter pendant l'initialisation du service Bluetooth..."
+                            !isBluetoothEnabled -> stringResource(R.string.connection_msg_bt_off)
+                            isBleReady -> stringResource(R.string.connection_msg_bt_ready)
+                            else -> stringResource(R.string.connection_msg_bt_init)
                         },
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
                     )
-                    
+
                     Spacer(modifier = Modifier.height(24.dp))
-                    
+
                     Button(
                         onClick = {
                             isScanning = true
@@ -219,20 +221,20 @@ fun ConnectionScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text("SCAN...", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.connection_btn_scan), fontWeight = FontWeight.Bold)
                         } else {
                             Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("CONNECTER", fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                            Text(stringResource(R.string.connection_btn_connect), fontWeight = FontWeight.Black, letterSpacing = 2.sp)
                         }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.weight(1f))
-            
+
             Text(
-                text = "GOPRO CONTROLLER V4.2",
+                text = stringResource(R.string.connection_footer),
                 color = Color.White.copy(alpha = 0.2f),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -240,7 +242,7 @@ fun ConnectionScreen(
             )
         }
     }
-    
+
     // Reset scanning flag after connection or timeout (simulation)
     LaunchedEffect(isScanning) {
         if (isScanning) {

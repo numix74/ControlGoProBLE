@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
+import com.ximun.gopropro.LocaleUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +28,12 @@ class MainActivity : ComponentActivity() {
     private val viewModel: GoProViewModel by viewModels()
     private lateinit var connectionManager: GoProConnectionManager
     private lateinit var bubbleController: BubbleController
+
+    // ── Locale ───────────────────────────────────────────────────────
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleUtils.applyLocale(newBase))
+    }
 
     // ── BroadcastReceiver Bluetooth ──────────────────────────────────
 
@@ -107,7 +114,11 @@ class MainActivity : ComponentActivity() {
                             connectionManager.loadPreset(presetId)
                         },
                         onToggleDarkMode = { viewModel.toggleDarkMode() },
-                        onToggleBubble = { viewModel.toggleBubble() }
+                        onToggleBubble = { viewModel.toggleBubble() },
+                        onLanguageChange = { tag ->
+                            LocaleUtils.setLocale(this, tag)
+                            recreate()
+                        }
                     )
                 }
             }

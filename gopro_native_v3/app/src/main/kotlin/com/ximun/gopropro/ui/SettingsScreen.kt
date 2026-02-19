@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Settings
@@ -28,11 +29,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.GoProPresetMappings
 import com.ximun.gopropro.GoProSettingsMappings
+import com.ximun.gopropro.LocaleUtils
+import com.ximun.gopropro.R
 import com.ximun.gopropro.ble.GoProConstants
 import com.ximun.gopropro.ui.theme.LocalAppColors
 import com.ximun.gopropro.ui.theme.PrimaryTeal
@@ -49,11 +54,15 @@ fun SettingsScreen(
     onSyncTime: () -> Unit = {},
     onReboot: () -> Unit = {},
     onToggleDarkMode: () -> Unit = {},
-    onToggleBubble: () -> Unit = {}
+    onToggleBubble: () -> Unit = {},
+    onLanguageChange: (String) -> Unit = {}
 ) {
     val settings = state.settings
     val capabilities = state.capabilities
     val appColors = LocalAppColors.current
+    val context = LocalContext.current
+    val currentLocale = remember { LocaleUtils.getCurrentLocale(context) }
+    val modeActiveLabel = stringResource(R.string.settings_section_mode)
 
     // Trouver le preset actif et ses settings
     val activePreset = state.presetGroups
@@ -62,11 +71,12 @@ fun SettingsScreen(
 
     // Déterminer le titre et l'icône du mode actif
     val presetName = when {
-        activePreset == null -> "MODE ACTIF"
+        activePreset == null -> modeActiveLabel
         activePreset.hasCustomName() -> activePreset.customName.uppercase()
         activePreset.hasTitleId() ->
-            GoProPresetMappings.getPresetTitle(activePreset.titleId.number)?.uppercase() ?: "MODE ACTIF"
-        else -> "MODE ACTIF"
+            GoProPresetMappings.getPresetTitle(activePreset.titleId.number)
+                ?.let { stringResource(it).uppercase() } ?: modeActiveLabel
+        else -> modeActiveLabel
     }
 
     // Construire la liste de settings du mode à partir du preset actif
@@ -78,7 +88,10 @@ fun SettingsScreen(
             .padding(20.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        HeaderSection(title = "RÉGLAGES", subtitle = "PARAMÈTRES DE LA CAMÉRA")
+        HeaderSection(
+            title = stringResource(R.string.settings_title),
+            subtitle = stringResource(R.string.settings_subtitle)
+        )
         Spacer(modifier = Modifier.height(24.dp))
 
         // Section: Paramètres du mode actif
@@ -108,7 +121,7 @@ fun SettingsScreen(
         )
         val availableSystemSettings = systemSettingCandidates.filter { settings.containsKey(it) }
 
-        SectionHeader(icon = Icons.Default.Settings, title = "PARAMÈTRES SYSTÈME")
+        SectionHeader(icon = Icons.Default.Settings, title = stringResource(R.string.settings_section_system))
         Spacer(modifier = Modifier.height(12.dp))
 
         // Settings système de la caméra
@@ -122,12 +135,15 @@ fun SettingsScreen(
         // Toggle Bulle Flottante (app)
         BubbleToggle(isBubbleEnabled = state.isBubbleEnabled, onToggle = onToggleBubble)
 
+        // Sélecteur de langue (app)
+        LanguagePicker(currentLocale = currentLocale, onLanguageChange = onLanguageChange)
+
         // Bouton Sync Horloge (toujours visible)
         ActionSettingRow(
-            label = "Sync Horloge",
+            label = stringResource(R.string.settings_sync_clock_label),
             icon = Icons.Default.Sync,
-            actionLabel = "Synchroniser",
-            feedbackLabel = "✓ Synchronisé",
+            actionLabel = stringResource(R.string.settings_sync_clock_action),
+            feedbackLabel = stringResource(R.string.settings_sync_clock_done),
             feedbackColor = Color(0xFF4CAF50),
             feedbackDurationMs = 2000,
             onClick = onSyncTime
@@ -135,15 +151,14 @@ fun SettingsScreen(
 
         // Bouton Redémarrer (conditionnel — masqué si non supporté par la caméra)
         // CMD_REBOOT (0x11) n'est pas supporté sur tous les modèles (ex: HERO11 Mini)
-        // On vérifie via la présence d'un setting connu qui confirme le support
         val isRebootSupported = settings.containsKey(GoProConstants.SETTING_ID_LCD_BRIGHTNESS)
                 && !state.cameraName.contains("Mini", ignoreCase = true)
         if (isRebootSupported) {
             ActionSettingRow(
-                label = "Redémarrer",
+                label = stringResource(R.string.settings_reboot_label),
                 icon = Icons.Default.RestartAlt,
-                actionLabel = "Redémarrer",
-                feedbackLabel = "Redémarrage...",
+                actionLabel = stringResource(R.string.settings_reboot_action),
+                feedbackLabel = stringResource(R.string.settings_reboot_in_progress),
                 feedbackColor = Color(0xFFF59E0B),
                 feedbackDurationMs = 3000,
                 onClick = onReboot
@@ -178,18 +193,16 @@ private fun buildModeSettings(
         )
     }
 
-    // IDs du settingArray du preset (typiquement les captions: résolution, fps, objectif...)
     val presetSettingIds = activePreset.settingArrayList.map { it.id }.toSet()
 
-    // Détecter le type de mode via le titleId (valeurs du proto EnumPresetTitle)
     val titleId = if (activePreset.hasTitleId()) activePreset.titleId.number else -1
     val isTimelapse = titleId in setOf(
-        7,         // TIME_WARP
-        8, 9,      // TIME_LAPSE, NIGHT_LAPSE
-        16,        // TIME_WARP_2
-        69,        // SIMPLE_TIME_WARP
-        76, 77, 78, // STAR_TRAIL, LIGHT_PAINTING, LIGHT_TRAIL
-        81         // MAX_TIMEWARP
+        7,
+        8, 9,
+        16,
+        69,
+        76, 77, 78,
+        81
     ) || presetSettingIds.any { it in setOf(
         GoProConstants.SETTING_ID_TIMEWARP_SPEED,
         GoProConstants.SETTING_ID_TIMELAPSE_RATE,
@@ -198,9 +211,6 @@ private fun buildModeSettings(
         GoProConstants.SETTING_ID_LAPSE_MODE
     )}
 
-    // Ordre d'affichage complet (preset + enrichissements)
-    // On inclut à la fois les settings du preset ET des settings supplémentaires
-    // pertinents pour le mode, filtrés par ce qui est réellement disponible
     val orderedSettingIds = listOf(
         GoProConstants.SETTING_ID_RESOLUTION,
         GoProConstants.SETTING_ID_FPS,
@@ -211,7 +221,7 @@ private fun buildModeSettings(
         GoProConstants.SETTING_ID_TIMELAPSE_LENS,
         GoProConstants.SETTING_ID_PHOTO_LENS,
         GoProConstants.SETTING_ID_HYPERSMOOTH,
-        150,  // Video Horizon Leveling
+        150,
         GoProConstants.SETTING_ID_TIMEWARP_SPEED,
         GoProConstants.SETTING_ID_TIMELAPSE_RATE,
         GoProConstants.SETTING_ID_NIGHT_LAPSE_RATE,
@@ -226,17 +236,15 @@ private fun buildModeSettings(
         GoProConstants.SETTING_ID_MAX_LENS_MOD_ENABLE
     )
 
-    // Settings enrichis pour le mode vidéo (ajoutés même s'ils ne sont pas dans le settingArray)
     val videoExtraSettings = setOf(
         GoProConstants.SETTING_ID_HYPERSMOOTH,
-        150,  // Video Horizon Leveling
+        150,
         GoProConstants.SETTING_ID_BIT_RATE,
         GoProConstants.SETTING_ID_BIT_DEPTH,
         GoProConstants.SETTING_ID_VIDEO_PROFILE,
         GoProConstants.SETTING_ID_HINDSIGHT
     )
 
-    // Settings enrichis pour timelapse
     val timelapseExtraSettings = setOf(
         GoProConstants.SETTING_ID_LAPSE_MODE,
         GoProConstants.SETTING_ID_MEDIA_FORMAT
@@ -244,7 +252,6 @@ private fun buildModeSettings(
 
     val extraSettings = if (isTimelapse) timelapseExtraSettings else videoExtraSettings
 
-    // Filtre : on garde un setting s'il est dans le preset OU dans les extras ET disponible sur la caméra
     val resultIds = orderedSettingIds.filter { id ->
         id in presetSettingIds || (id in extraSettings && id in availableSettings)
     }
@@ -273,7 +280,6 @@ private fun defaultVideoSettings() = listOf(
 
 /**
  * Toggle Mode Sombre/Clair intégré dans les paramètres système.
- * Même style visuel que les dropdowns de réglages.
  */
 @Composable
 private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
@@ -295,7 +301,8 @@ private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (isDarkMode) "Mode Clair" else "Mode Sombre",
+                    text = if (isDarkMode) stringResource(R.string.settings_dark_mode_label)
+                           else stringResource(R.string.settings_light_mode_label),
                     fontWeight = FontWeight.Bold,
                     color = appColors.textPrimary
                 )
@@ -319,7 +326,6 @@ private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
 
 /**
  * Toggle Bulle Flottante intégré dans les paramètres système.
- * Même style visuel que le toggle Mode Sombre/Clair.
  */
 @Composable
 private fun BubbleToggle(isBubbleEnabled: Boolean, onToggle: () -> Unit) {
@@ -341,7 +347,7 @@ private fun BubbleToggle(isBubbleEnabled: Boolean, onToggle: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Bulle Flottante",
+                    text = stringResource(R.string.settings_bubble_label),
                     fontWeight = FontWeight.Bold,
                     color = appColors.textPrimary
                 )
@@ -355,8 +361,90 @@ private fun BubbleToggle(isBubbleEnabled: Boolean, onToggle: () -> Unit) {
 }
 
 /**
+ * Sélecteur de langue de l'application.
+ * Permet de choisir indépendamment de la langue du système.
+ */
+@Composable
+private fun LanguagePicker(
+    currentLocale: String,
+    onLanguageChange: (String) -> Unit
+) {
+    // Liste : tag BCP-47 → clé string pour le nom de la langue
+    val languages = listOf(
+        "" to R.string.lang_system,
+        "fr" to R.string.lang_fr,
+        "en" to R.string.lang_en,
+        "es" to R.string.lang_es,
+        "eu" to R.string.lang_eu,
+        "ca" to R.string.lang_ca,
+        "de" to R.string.lang_de
+    )
+    val currentLabel = languages.find { it.first == currentLocale }
+        ?.let { stringResource(it.second) } ?: stringResource(R.string.lang_system)
+
+    var expanded by remember { mutableStateOf(false) }
+    val appColors = LocalAppColors.current
+
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Box {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 80.dp)
+                    .clickable { expanded = true },
+                color = appColors.card,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, appColors.border)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_language_label),
+                        fontWeight = FontWeight.Bold,
+                        color = appColors.textPrimary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Language,
+                            null,
+                            tint = PrimaryTeal,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = currentLabel, color = PrimaryTeal)
+                        Icon(Icons.Default.ArrowDropDown, null, tint = appColors.textSecondary)
+                    }
+                }
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                languages.forEach { (tag, labelRes) ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(labelRes)) },
+                        onClick = {
+                            expanded = false
+                            onLanguageChange(tag)
+                        },
+                        leadingIcon = if (tag == currentLocale) {
+                            { Icon(Icons.Default.Check, contentDescription = null) }
+                        } else null
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
  * Bouton d'action intégré dans les paramètres système.
- * Même style visuel que les dropdowns mais avec feedback temporaire.
  */
 @Composable
 private fun ActionSettingRow(

@@ -15,10 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.GoProPresetMappings
+import com.ximun.gopropro.R
 import com.ximun.gopropro.ui.theme.AppCard
 import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
@@ -29,10 +31,13 @@ fun StatusScreen(state: CameraUiState, isLandscape: Boolean = false) {
         modifier = Modifier
             .fillMaxSize()
             .padding(20.dp)
-            .verticalScroll(rememberScrollState()) // Ajout du scroll si petit écran
+            .verticalScroll(rememberScrollState())
     ) {
         // En-tête
-        HeaderSection(title = "SYSTEM STATUS", subtitle = "DIAGNOSTIC TEMPS RÉEL")
+        HeaderSection(
+            title = stringResource(R.string.status_title),
+            subtitle = stringResource(R.string.status_subtitle)
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -48,7 +53,7 @@ fun StatusScreen(state: CameraUiState, isLandscape: Boolean = false) {
 
         // Liste Infos Système
         SystemInfoList(state)
-        
+
         Spacer(modifier = Modifier.height(if (isLandscape) 24.dp else 80.dp))
     }
 }
@@ -62,15 +67,15 @@ fun BatterySection(state: CameraUiState) {
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
-                text = "ALIMENTATION",
+                text = stringResource(R.string.status_battery_section),
                 color = Color.Gray,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -83,15 +88,19 @@ fun BatterySection(state: CameraUiState) {
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = if (state.isCharging) "EN CHARGE" else if (state.batteryLevel < 20) "CRITIQUE" else "NOMINAL",
+                    text = when {
+                        state.isCharging -> stringResource(R.string.status_battery_charging)
+                        state.batteryLevel < 20 -> stringResource(R.string.status_battery_critical)
+                        else -> stringResource(R.string.status_battery_nominal)
+                    },
                     color = if (state.isCharging) PrimaryTeal else if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Progress Bar Batterie
             Box(
                 modifier = Modifier
@@ -107,16 +116,26 @@ fun BatterySection(state: CameraUiState) {
                         .background(if (state.isCharging) PrimaryTeal else if (state.batteryLevel < 20) Color(0xFFEF4444) else PrimaryTeal)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                 Icon(if (state.isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryFull, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(12.dp))
-                 Spacer(modifier = Modifier.width(4.dp))
-                 Text(text = if (state.isCharging) "SECTEUR" else "INTERNE", color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    if (state.isCharging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryFull,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (state.isCharging) stringResource(R.string.status_battery_ac) else stringResource(R.string.status_battery_internal),
+                    color = Color.Gray,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -131,15 +150,15 @@ fun StorageSection(state: CameraUiState) {
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
-                text = "STATISTIQUES STOCKAGE",
+                text = stringResource(R.string.status_storage_section),
                 color = Color.Gray,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 2.sp
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -152,15 +171,15 @@ fun StorageSection(state: CameraUiState) {
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = "RESTANT",
+                    text = stringResource(R.string.status_storage_remaining),
                     color = Color.Gray,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Progress Bar Custom
             Box(
                 modifier = Modifier
@@ -169,7 +188,6 @@ fun StorageSection(state: CameraUiState) {
                     .clip(RoundedCornerShape(4.dp))
                     .background(Color.White.copy(alpha = 0.05f))
             ) {
-                // Barre de progression (width basé sur le %)
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -177,27 +195,27 @@ fun StorageSection(state: CameraUiState) {
                         .background(PrimaryTeal)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${state.storagePercent}% PLEIN",
+                    text = stringResource(R.string.status_storage_full_pct, state.storagePercent),
                     color = Color.Gray,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "CARTE ${state.sdStatusLabel}",
+                    text = stringResource(R.string.status_storage_card_label, state.sdStatusLabel),
                     color = if (state.sdStatusLabel != "OK") Color(0xFFEF4444) else Color.Gray,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "SD CARD (V30)",
+                    text = stringResource(R.string.status_storage_sd_type),
                     color = Color.Gray,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
@@ -220,30 +238,34 @@ fun SystemInfoList(state: CameraUiState) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
             // État système
-            InfoRow("État Système", if (state.isRecording) "ENREGISTREMENT" else "PRÊT", if (state.isRecording) Icons.Default.RadioButtonChecked else Icons.Default.CheckCircle)
+            InfoRow(
+                stringResource(R.string.status_info_system_state),
+                if (state.isRecording) stringResource(R.string.status_info_recording) else stringResource(R.string.status_info_ready),
+                if (state.isRecording) Icons.Default.RadioButtonChecked else Icons.Default.CheckCircle
+            )
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
             // Température
-            InfoRow("Température", state.tempStatus, Icons.Default.DeviceThermostat)
+            InfoRow(stringResource(R.string.status_info_temperature), state.tempStatus, Icons.Default.DeviceThermostat)
             if (state.isOverheating) {
                 HorizontalDivider(color = Color(0xFFEF4444))
-                InfoRow("SURCHAUFFE", "DANGER", Icons.Default.Warning)
+                InfoRow(stringResource(R.string.status_info_overheat), stringResource(R.string.status_info_danger), Icons.Default.Warning)
             }
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
             // Alimentation
             if (state.isCharging) {
-                InfoRow("Alimentation", "EN CHARGE", Icons.Default.Power)
+                InfoRow(stringResource(R.string.status_info_power), stringResource(R.string.status_battery_charging), Icons.Default.Power)
                 HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             }
 
-            InfoRow("Photos Restantes", "${state.photosRemaining}", Icons.Default.PhotoCamera)
+            InfoRow(stringResource(R.string.status_info_photos), "${state.photosRemaining}", Icons.Default.PhotoCamera)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            InfoRow("Vidéos sur Carte", "${state.videosCount}", Icons.Default.VideoLibrary)
+            InfoRow(stringResource(R.string.status_info_videos), "${state.videosCount}", Icons.Default.VideoLibrary)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            InfoRow("Capacité SD", state.sdCapacityFormatted, Icons.Default.SdStorage)
+            InfoRow(stringResource(R.string.status_info_sd_capacity), state.sdCapacityFormatted, Icons.Default.SdStorage)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            InfoRow("Temps Restant", state.videoRemainingTime, Icons.Default.Timer)
+            InfoRow(stringResource(R.string.status_info_time_remaining), state.videoRemainingTime, Icons.Default.Timer)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
             val activePreset = state.presetGroups
@@ -252,19 +274,21 @@ fun SystemInfoList(state: CameraUiState) {
             val presetName = when {
                 activePreset == null -> "ID ${state.currentPresetId}"
                 activePreset.hasCustomName() -> activePreset.customName
-                activePreset.hasTitleId() -> GoProPresetMappings.getPresetTitle(activePreset.titleId.number) ?: "ID ${state.currentPresetId}"
+                activePreset.hasTitleId() ->
+                    GoProPresetMappings.getPresetTitle(activePreset.titleId.number)
+                        ?.let { stringResource(it) } ?: "ID ${state.currentPresetId}"
                 else -> "ID ${state.currentPresetId}"
             }
-            InfoRow("Preset Actif", presetName, Icons.Default.DashboardCustomize)
+            InfoRow(stringResource(R.string.status_info_active_preset), presetName, Icons.Default.DashboardCustomize)
 
             // Firmware & Serial (si disponibles)
             if (state.firmwareVersion.isNotEmpty()) {
                 HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-                InfoRow("Firmware", state.firmwareVersion, Icons.Default.SystemUpdate)
+                InfoRow(stringResource(R.string.status_info_firmware), state.firmwareVersion, Icons.Default.SystemUpdate)
             }
             if (state.serialNumber.isNotEmpty()) {
                 HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-                InfoRow("N° Série", state.serialNumber, Icons.Default.Badge)
+                InfoRow(stringResource(R.string.status_info_serial), state.serialNumber, Icons.Default.Badge)
             }
         }
     }

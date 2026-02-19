@@ -24,6 +24,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.ximun.gopropro.R
 import com.ximun.gopropro.ui.theme.AppPrimary
 import com.ximun.gopropro.ui.theme.HilightYellow
 import com.ximun.gopropro.ui.theme.LocalAppColors
@@ -50,7 +52,8 @@ fun DashboardLayout(
     onUpdateSetting: (Int, Int) -> Unit,
     onLoadPreset: (Int) -> Unit,
     onToggleDarkMode: () -> Unit = {},
-    onToggleBubble: () -> Unit = {}
+    onToggleBubble: () -> Unit = {},
+    onLanguageChange: (String) -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val appColors = LocalAppColors.current
@@ -60,7 +63,7 @@ fun DashboardLayout(
     fun TabContent() {
         when (state.selectedTab) {
             0 -> DashboardScreen(state, isLandscape, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer, onSnapTimer)
-            1 -> SettingsScreen(state, isLandscape, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble)
+            1 -> SettingsScreen(state, isLandscape, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble, onLanguageChange)
             2 -> PresetsScreen(state, isLandscape, onLoadPreset)
             3 -> StatusScreen(state, isLandscape)
         }
@@ -122,15 +125,15 @@ fun DashboardScreen(
                     .padding(end = 12.dp)
             ) {
                 HeaderSection(
-                    title = "STUDIO PRO",
-                    subtitle = "LIAISON DIRECTE",
+                    title = stringResource(R.string.dashboard_title),
+                    subtitle = stringResource(R.string.dashboard_subtitle),
                     actions = {
                         Row {
                             IconButton(onClick = onSleep) {
-                                Icon(Icons.Default.PowerSettingsNew, "Veille", tint = Color.LightGray)
+                                Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
                             }
                             IconButton(onClick = onDisconnect) {
-                                Icon(Icons.Default.LinkOff, "Déconnexion", tint = Color.Gray)
+                                Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = Color.Gray)
                             }
                         }
                     }
@@ -160,15 +163,15 @@ fun DashboardScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             HeaderSection(
-                title = "STUDIO PRO",
-                subtitle = "LIAISON DIRECTE",
+                title = stringResource(R.string.dashboard_title),
+                subtitle = stringResource(R.string.dashboard_subtitle),
                 actions = {
                     Row {
                         IconButton(onClick = onSleep) {
-                            Icon(Icons.Default.PowerSettingsNew, "Veille", tint = Color.LightGray)
+                            Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
                         }
                         IconButton(onClick = onDisconnect) {
-                            Icon(Icons.Default.LinkOff, "Déconnexion", tint = Color.Gray)
+                            Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = Color.Gray)
                         }
                     }
                 }
@@ -187,8 +190,8 @@ fun DashboardScreen(
 @Composable
 private fun StatsSection(state: CameraUiState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        StatusCard(Modifier.weight(1f), "BATTERIE", "${state.batteryLevel}%", Icons.Default.BatteryChargingFull)
-        StatusCard(Modifier.weight(1f), "STOCKAGE", state.storageSpace, Icons.Default.SdCard)
+        StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_battery), "${state.batteryLevel}%", Icons.Default.BatteryChargingFull)
+        StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_storage), state.storageSpace, Icons.Default.SdCard)
     }
 }
 
@@ -200,7 +203,7 @@ private fun TimerSection(
     onAdjustTimer: (Int) -> Unit,
     onSnapTimer: () -> Unit
 ) {
-    val timerLabel = remember(state.isCountdownActive) { if (state.isCountdownActive) "REBOURS" else "DURÉE" }
+    val timerLabel = if (state.isCountdownActive) stringResource(R.string.dashboard_timer_countdown) else stringResource(R.string.dashboard_timer_duration)
     val timerColor = remember(state.isCountdownActive) { if (state.isCountdownActive) HilightYellow else PrimaryTeal }
     val showAdjust = state.isTimerModeEnabled && !state.isRecording && !state.isCountdownActive
 
@@ -371,7 +374,7 @@ private fun RecordingControls(
         val isActive = state.isRecording || state.isCountdownActive
         ControlCard(
             modifier = Modifier.weight(1.2f),
-            title = if (isActive) "STOP CAPTURE" else "START CAPTURE",
+            title = if (isActive) stringResource(R.string.dashboard_btn_stop_capture) else stringResource(R.string.dashboard_btn_start_capture),
             icon = if (isActive) Icons.Default.Stop else Icons.Default.RadioButtonChecked,
             iconColor = if (isActive) appColors.textPrimary else Color.Red,
             backgroundColor = if (isActive) appColors.card else Color.Red.copy(alpha = 0.1f),
@@ -381,7 +384,7 @@ private fun RecordingControls(
 
         ControlCard(
             modifier = Modifier.weight(1f),
-            title = "Hilight",
+            title = stringResource(R.string.dashboard_btn_hilight),
             icon = Icons.Default.AutoAwesome,
             iconColor = if (state.isRecording) HilightYellow else appColors.textSecondary,
             backgroundColor = appColors.card,
@@ -456,10 +459,10 @@ fun DashboardNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavItem("Controle", Icons.Default.Videocam, selectedTab == 0) { onTabSelected(0) }
-            NavItem("Réglages", Icons.Default.Settings, selectedTab == 1) { onTabSelected(1) }
-            NavItem("Presets", Icons.Default.DashboardCustomize, selectedTab == 2) { onTabSelected(2) }
-            NavItem("Status", Icons.Default.Info, selectedTab == 3) { onTabSelected(3) }
+            NavItem(stringResource(R.string.nav_tab_control), Icons.Default.Videocam, selectedTab == 0) { onTabSelected(0) }
+            NavItem(stringResource(R.string.nav_tab_settings), Icons.Default.Settings, selectedTab == 1) { onTabSelected(1) }
+            NavItem(stringResource(R.string.nav_tab_presets), Icons.Default.DashboardCustomize, selectedTab == 2) { onTabSelected(2) }
+            NavItem(stringResource(R.string.nav_tab_status), Icons.Default.Info, selectedTab == 3) { onTabSelected(3) }
         }
     }
 }
@@ -475,7 +478,7 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             selected = selectedTab == 0,
             onClick = { onTabSelected(0) },
             icon = { Icon(Icons.Default.Videocam, null, modifier = Modifier.size(24.dp)) },
-            label = { Text("Controle", fontSize = 10.sp) },
+            label = { Text(stringResource(R.string.nav_tab_control), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
                 selectedIconColor = AppPrimary,
                 selectedTextColor = appColors.textPrimary,
@@ -488,7 +491,7 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             selected = selectedTab == 1,
             onClick = { onTabSelected(1) },
             icon = { Icon(Icons.Default.Settings, null, modifier = Modifier.size(24.dp)) },
-            label = { Text("Réglages", fontSize = 10.sp) },
+            label = { Text(stringResource(R.string.nav_tab_settings), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
                 selectedIconColor = AppPrimary,
                 selectedTextColor = appColors.textPrimary,
@@ -501,7 +504,7 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             selected = selectedTab == 2,
             onClick = { onTabSelected(2) },
             icon = { Icon(Icons.Default.DashboardCustomize, null, modifier = Modifier.size(24.dp)) },
-            label = { Text("Presets", fontSize = 10.sp) },
+            label = { Text(stringResource(R.string.nav_tab_presets), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
                 selectedIconColor = AppPrimary,
                 selectedTextColor = appColors.textPrimary,
@@ -514,7 +517,7 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             selected = selectedTab == 3,
             onClick = { onTabSelected(3) },
             icon = { Icon(Icons.Default.Info, null, modifier = Modifier.size(24.dp)) },
-            label = { Text("Status", fontSize = 10.sp) },
+            label = { Text(stringResource(R.string.nav_tab_status), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
                 selectedIconColor = AppPrimary,
                 selectedTextColor = appColors.textPrimary,
