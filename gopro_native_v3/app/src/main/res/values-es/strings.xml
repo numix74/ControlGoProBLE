@@ -56,6 +56,7 @@
     <string name="status_info_power">Alimentación</string>
     <string name="status_info_photos">Fotos Restantes</string>
     <string name="status_info_videos">Vídeos en Tarjeta</string>
+    <string name="status_info_waypoints">Waypoints GPX</string>
     <string name="status_info_sd_capacity">Capacidad SD</string>
     <string name="status_info_time_remaining">Tiempo Restante</string>
     <string name="status_info_active_preset">Preset Activo</string>

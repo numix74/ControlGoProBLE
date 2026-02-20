@@ -18,6 +18,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.ActivityCompat
 import com.ximun.gopropro.GoProSettingsMappings
+import com.ximun.gopropro.gps.GpsTracker
 import com.ximun.gopropro.proto.GoProProtos
 import com.ximun.gopropro.viewmodel.GoProViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +37,8 @@ import java.util.Calendar
 class GoProConnectionManager(
     private val context: Context,
     private val viewModel: GoProViewModel,
-    private val lifecycleScope: CoroutineScope
+    private val lifecycleScope: CoroutineScope,
+    private val gpsTracker: GpsTracker? = null
 ) {
     companion object {
         private const val TAG = "GoProConnectionManager"
@@ -69,6 +71,7 @@ class GoProConnectionManager(
     private var isDestroyed = false
     private var wasConnectedBefore = false
     private var lastConnectedTimestamp = 0L
+    private var wasRecording = false
     @Volatile private var lastCommandSentAt: Long = 0L
     private val bleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -97,6 +100,8 @@ class GoProConnectionManager(
                             wasConnectedBefore = true
                             lastConnectedTimestamp = System.currentTimeMillis()
                             reconnectJob?.cancel()
+                            gpsTracker?.startSession(System.currentTimeMillis())
+                            viewModel.resetWaypointCount()
                             lifecycleScope.launch(Dispatchers.IO) {
                                 delay(500)
                                 startKeepAlive()
@@ -105,6 +110,8 @@ class GoProConnectionManager(
                             }
                         } else {
                             keepAliveJob?.cancel()
+                            gpsTracker?.endSession()
+                            wasRecording = false
                             // Reconnexion auto si on était connecté avant
                             if (wasConnectedBefore && !isDestroyed) {
                                 attemptReconnect()
@@ -123,6 +130,9 @@ class GoProConnectionManager(
                     wasConnectedBefore = true
                     // Relancer le keep-alive sur le nouveau lifecycleScope
                     startKeepAlive()
+                    // Relancer la session GPS (la précédente a été fermée dans prepareForRecreation)
+                    gpsTracker?.startSession(System.currentTimeMillis())
+                    viewModel.resetWaypointCount()
                 } else {
                     retainedBleManager = null
                     bleManager = GoProBleManager(context.applicationContext)
@@ -145,6 +155,8 @@ class GoProConnectionManager(
         if (::bleManager.isInitialized) {
             retainedBleManager = bleManager
         }
+        // Fermer proprement le fichier GPX avant la recréation
+        gpsTracker?.endSession()
     }
 
     fun destroy() {
@@ -164,11 +176,18 @@ class GoProConnectionManager(
         activity: ComponentActivity,
         permissionLauncher: ActivityResultLauncher<Array<String>>
     ) {
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
-        } else {
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
+        val permissions = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            // WRITE_EXTERNAL_STORAGE nécessaire pour écrire dans Documents/ sur API 26-28
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }.toTypedArray()
         if (permissions.all { ActivityCompat.checkSelfPermission(activity, it) == PackageManager.PERMISSION_GRANTED }) {
             startScan()
         } else {
@@ -308,6 +327,7 @@ class GoProConnectionManager(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_HILIGHT.toByte())
         )
+        gpsTracker?.onHilight(System.currentTimeMillis())
     }
 
     /**
@@ -588,7 +608,17 @@ class GoProConnectionManager(
                     when (id) {
                         GoProConstants.STATUS_ID_BATTERY -> viewModel.updateBattery(convertToInt(value))
                         GoProConstants.STATUS_ID_BATTERY_BARS -> viewModel.updateBatteryBars(convertToInt(value))
-                        GoProConstants.STATUS_ID_RECORDING -> viewModel.updateRecording(convertToInt(value) == 1)
+                        GoProConstants.STATUS_ID_RECORDING -> {
+                            val isNowRecording = convertToInt(value) == 1
+                            viewModel.updateRecording(isNowRecording)
+                            val now = System.currentTimeMillis()
+                            if (isNowRecording && !wasRecording) {
+                                gpsTracker?.onRecordingStarted(now)
+                            } else if (!isNowRecording && wasRecording) {
+                                gpsTracker?.onRecordingStopped(now)
+                            }
+                            wasRecording = isNowRecording
+                        }
                         GoProConstants.STATUS_ID_STORAGE -> viewModel.updateSdRemaining(convertToLong(value))
                         GoProConstants.STATUS_ID_SD_CAPACITY -> viewModel.updateSdCapacity(convertToLong(value))
                         GoProConstants.STATUS_ID_VIDEO_REMAINING -> viewModel.updateVideoRemaining(convertToInt(value))

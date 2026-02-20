@@ -115,6 +115,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+    // GPS (FusedLocationProviderClient)
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
     // Performance
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("androidx.multidex:multidex:2.0.1")

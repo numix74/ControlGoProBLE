@@ -58,6 +58,9 @@ data class CameraUiState(
     val serialNumber: String = "",
     val cameraName: String = "",
 
+    // GPS & waypoints
+    val waypointCount: Int = 0,
+
     // Préférences app
     val isDarkMode: Boolean = true,
     val isBubbleEnabled: Boolean = true
@@ -338,6 +341,14 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateVideosCount(count: Int) {
         _uiState.update { it.copy(videosCount = count) }
+    }
+
+    fun incrementWaypointCount() {
+        _uiState.update { it.copy(waypointCount = it.waypointCount + 1) }
+    }
+
+    fun resetWaypointCount() {
+        _uiState.update { it.copy(waypointCount = 0) }
     }
 
     fun updateSdStatus(code: Int) {

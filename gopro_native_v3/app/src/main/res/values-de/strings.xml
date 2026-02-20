@@ -56,6 +56,7 @@
     <string name="status_info_power">Stromversorgung</string>
     <string name="status_info_photos">Verbleibende Fotos</string>
     <string name="status_info_videos">Videos auf Karte</string>
+    <string name="status_info_waypoints">GPX-Wegpunkte</string>
     <string name="status_info_sd_capacity">SD-Kapazität</string>
     <string name="status_info_time_remaining">Verbleibende Zeit</string>
     <string name="status_info_active_preset">Aktives Preset</string>

@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import com.ximun.gopropro.ble.GoProConnectionManager
 import com.ximun.gopropro.bubble.BubbleController
+import com.ximun.gopropro.gps.GpsTracker
 import com.ximun.gopropro.ui.ConnectionScreen
 import com.ximun.gopropro.ui.DashboardLayout
 import com.ximun.gopropro.ui.theme.GoProTheme
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: GoProViewModel by viewModels()
     private lateinit var connectionManager: GoProConnectionManager
     private lateinit var bubbleController: BubbleController
+    private lateinit var gpsTracker: GpsTracker
 
     // ── Locale ───────────────────────────────────────────────────────
 
@@ -68,7 +70,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         // Initialiser les managers
-        connectionManager = GoProConnectionManager(this, viewModel, lifecycleScope)
+        gpsTracker = GpsTracker(applicationContext) { viewModel.incrementWaypointCount() }
+        connectionManager = GoProConnectionManager(this, viewModel, lifecycleScope, gpsTracker)
         bubbleController = BubbleController(this, viewModel, lifecycleScope, connectionManager)
 
         // Bluetooth : état initial + écoute des changements

@@ -263,6 +263,8 @@ fun SystemInfoList(state: CameraUiState) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow(stringResource(R.string.status_info_videos), "${state.videosCount}", Icons.Default.VideoLibrary)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+            InfoRow(stringResource(R.string.status_info_waypoints), "${state.waypointCount}", Icons.Default.LocationOn)
+            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow(stringResource(R.string.status_info_sd_capacity), state.sdCapacityFormatted, Icons.Default.SdStorage)
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
             InfoRow(stringResource(R.string.status_info_time_remaining), state.videoRemainingTime, Icons.Default.Timer)
