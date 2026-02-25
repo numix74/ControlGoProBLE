@@ -132,16 +132,16 @@ class GpxWriter(private val context: Context) {
                 val elapsed = ((timestamp - recordingStartMs) / 1000).coerceAtLeast(0)
                 descParts.add("T+%02d:%02d".format(elapsed / 60, elapsed % 60))
             }
-            if (speedKmh > 0) descParts.add("%.0f km/h".format(speedKmh))
-            if (acc >= 0) descParts.add("acc: %.0fm".format(acc))
+            if (speedKmh > 0) descParts.add(String.format(Locale.US, "%.0f km/h", speedKmh))
+            if (acc >= 0) descParts.add(String.format(Locale.US, "acc: %.0fm", acc))
             val desc = descParts.joinToString(" | ")
 
             val wptName = if (hasGps) name else "$name (no GPS)"
             val isoTime = isoUtc(timestamp)
 
             w.write(
-                """  <wpt lat="${"%.8f".format(lat)}" lon="${"%.8f".format(lon)}">
-    <ele>${"%.1f".format(alt)}</ele>
+                """  <wpt lat="${String.format(Locale.US, "%.8f", lat)}" lon="${String.format(Locale.US, "%.8f", lon)}">
+    <ele>${String.format(Locale.US, "%.1f", alt)}</ele>
     <time>$isoTime</time>
     <name>$wptName</name>
     <desc>$desc</desc>
