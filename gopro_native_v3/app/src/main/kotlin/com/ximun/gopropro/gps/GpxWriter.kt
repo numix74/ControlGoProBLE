@@ -3,6 +3,7 @@ package com.ximun.gopropro.gps
 import android.content.ContentValues
 import android.content.Context
 import android.location.Location
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -32,8 +33,16 @@ class GpxWriter(private val context: Context) {
     private var outputStream: OutputStream? = null
     private var writer: BufferedWriter? = null
     private var sessionFileName: String = ""
+    private var waypointCount = 0
+    private var mediaStoreUri: Uri? = null
+    private var lastDirectFile: File? = null
 
     fun openSession(sessionStartTime: Long): Boolean {
+        // Filet de sécurité : fermer la session précédente si elle est encore ouverte
+        if (isOpen) {
+            Log.w(TAG, "openSession appelé sur session déjà ouverte, fermeture de la précédente")
+            closeSession()
+        }
         return try {
             val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
             sessionFileName = "gopro_${sdf.format(Date(sessionStartTime))}.gpx"
@@ -61,6 +70,7 @@ class GpxWriter(private val context: Context) {
             Log.e(TAG, "MediaStore insert failed")
             return false
         }
+        mediaStoreUri = uri
         outputStream = context.contentResolver.openOutputStream(uri) ?: run {
             Log.e(TAG, "Cannot open OutputStream via MediaStore")
             return false
@@ -77,12 +87,14 @@ class GpxWriter(private val context: Context) {
         )
         dir.mkdirs()
         val file = File(dir, sessionFileName)
+        lastDirectFile = file
         outputStream = file.outputStream()
         initWriter()
         return true
     }
 
     private fun initWriter() {
+        waypointCount = 0
         writer = BufferedWriter(OutputStreamWriter(outputStream!!, Charsets.UTF_8))
         writeHeader()
         Log.d(TAG, "GPX session opened: $sessionFileName")
@@ -149,6 +161,7 @@ class GpxWriter(private val context: Context) {
 """
             )
             w.flush()
+            waypointCount++
             Log.d(TAG, "Waypoint: $wptName @ $desc")
         } catch (e: Exception) {
             Log.e(TAG, "addWaypoint error: ${e.message}")
@@ -156,18 +169,37 @@ class GpxWriter(private val context: Context) {
     }
 
     fun closeSession() {
+        val count = waypointCount
+        val uriToDelete = mediaStoreUri
+        val fileToDelete = lastDirectFile
         try {
             writer?.write("</gpx>\n")
             writer?.flush()
             writer?.close()
             outputStream?.close()
-            Log.d(TAG, "GPX session closed: $sessionFileName")
+            Log.d(TAG, "GPX session closed: $sessionFileName ($count waypoints)")
         } catch (e: Exception) {
             Log.e(TAG, "closeSession error: ${e.message}")
         } finally {
             writer = null
             outputStream = null
+            mediaStoreUri = null
+            lastDirectFile = null
             sessionFileName = ""
+            waypointCount = 0
+        }
+        // Supprimer le fichier si aucun waypoint (session sans événement enregistré)
+        if (count == 0) {
+            try {
+                if (uriToDelete != null) {
+                    context.contentResolver.delete(uriToDelete, null, null)
+                } else {
+                    fileToDelete?.delete()
+                }
+                Log.d(TAG, "GPX vide supprimé (aucun waypoint)")
+            } catch (e: Exception) {
+                Log.e(TAG, "Suppression GPX vide: ${e.message}")
+            }
         }
     }
 

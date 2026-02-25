@@ -170,6 +170,7 @@ class GoProConnectionManager(
         keepAliveJob?.cancel()
         reconnectJob?.cancel()
         retainedBleManager = null
+        gpsTracker?.endSession()
         if (::bleManager.isInitialized) {
             bleManager.disconnect().enqueue()
             bleManager.close()
