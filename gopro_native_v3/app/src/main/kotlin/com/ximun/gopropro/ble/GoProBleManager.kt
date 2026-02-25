@@ -27,15 +27,21 @@ class GoProBleManager(context: Context) : BleManager(context) {
     // Interface pour remonter les messages complets
     interface GoProBleCallback {
         fun onMessageReceived(charUuid: String, data: ByteArray)
-        fun onConnectionStatusChanged(connected: Boolean)
+        fun onConnectionStatusChanged(connected: Boolean, reason: Int = 0)
     }
 
     var callback: GoProBleCallback? = null
+    @Volatile private var lastDisconnectReason = 0
 
     override fun getGattCallback(): BleManagerGattCallback = GoProGattCallback()
 
     override fun log(priority: Int, message: String) {
         Log.println(priority, tag, message)
+        // Capture le code GATT de déconnexion depuis le message Nordic "Error: (0xNN): ..."
+        if (priority == Log.WARN && message.startsWith("Error: (0x")) {
+            val hex = message.substringAfter("(0x").substringBefore(")").toIntOrNull(16) ?: 0
+            lastDisconnectReason = hex
+        }
     }
 
     private inner class GoProGattCallback : BleManagerGattCallback() {
@@ -116,6 +122,7 @@ class GoProBleManager(context: Context) : BleManager(context) {
         }
 
         override fun onDeviceDisconnected() {
+            val reason = lastDisconnectReason.also { lastDisconnectReason = 0 }
             // Nettoyage de toutes les caractéristiques
             commandChar = null
             commandRspChar = null
@@ -127,7 +134,7 @@ class GoProBleManager(context: Context) : BleManager(context) {
             commandDefragmenter.reset()
             settingsDefragmenter.reset()
             queryDefragmenter.reset()
-            callback?.onConnectionStatusChanged(false)
+            callback?.onConnectionStatusChanged(false, reason)
         }
 
         override fun onDeviceReady() {

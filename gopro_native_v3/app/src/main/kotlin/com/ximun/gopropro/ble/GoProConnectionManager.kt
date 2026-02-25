@@ -94,7 +94,7 @@ class GoProConnectionManager(
                         }
                     }
 
-                    override fun onConnectionStatusChanged(connected: Boolean) {
+                    override fun onConnectionStatusChanged(connected: Boolean, reason: Int) {
                         viewModel.updateConnection(connected)
                         if (connected) {
                             wasConnectedBefore = true
@@ -112,9 +112,13 @@ class GoProConnectionManager(
                             keepAliveJob?.cancel()
                             lifecycleScope.launch(Dispatchers.IO) { gpsTracker?.endSession() }
                             wasRecording = false
-                            // Reconnexion auto si on était connecté avant
-                            if (wasConnectedBefore && !isDestroyed) {
+                            // 0x13 (PEER USER) = caméra a fermé la connexion délibérément
+                            // (extinction manuelle ou auto-off) → pas de reconnexion
+                            val isPeerInitiated = reason == 0x13
+                            if (wasConnectedBefore && !isDestroyed && !isPeerInitiated) {
                                 attemptReconnect()
+                            } else if (isPeerInitiated) {
+                                Log.d(TAG, "Déconnexion initiée par la caméra (0x13), pas de reconnexion")
                             }
                         }
                     }
