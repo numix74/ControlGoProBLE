@@ -163,7 +163,7 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
                     delay(1000)
                     current--
                 }
-                _uiState.update { it.copy(isRecording = false, isCountdownActive = false, displayTime = "00:00") }
+                _uiState.update { it.copy(isRecording = false, isCountdownActive = false, displayTime = formatTimerDisplay(it.initialTimerValue)) }
                 onAutoStop?.invoke()
             } else {
                 recordingSeconds = 0

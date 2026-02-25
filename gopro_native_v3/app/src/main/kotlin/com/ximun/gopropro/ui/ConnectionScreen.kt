@@ -246,7 +246,7 @@ fun ConnectionScreen(
     // Reset scanning flag after connection or timeout (simulation)
     LaunchedEffect(isScanning) {
         if (isScanning) {
-            delay(3000)
+            delay(30_000)
             isScanning = false
         }
     }
