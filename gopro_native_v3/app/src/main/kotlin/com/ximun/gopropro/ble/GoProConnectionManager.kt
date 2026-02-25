@@ -100,9 +100,9 @@ class GoProConnectionManager(
                             wasConnectedBefore = true
                             lastConnectedTimestamp = System.currentTimeMillis()
                             reconnectJob?.cancel()
-                            gpsTracker?.startSession(System.currentTimeMillis())
                             viewModel.resetWaypointCount()
                             lifecycleScope.launch(Dispatchers.IO) {
+                                gpsTracker?.startSession(System.currentTimeMillis())
                                 delay(500)
                                 startKeepAlive()
                                 delay(200)
@@ -110,7 +110,7 @@ class GoProConnectionManager(
                             }
                         } else {
                             keepAliveJob?.cancel()
-                            gpsTracker?.endSession()
+                            lifecycleScope.launch(Dispatchers.IO) { gpsTracker?.endSession() }
                             wasRecording = false
                             // Reconnexion auto si on était connecté avant
                             if (wasConnectedBefore && !isDestroyed) {
@@ -128,11 +128,13 @@ class GoProConnectionManager(
                     retainedBleManager = null
                     bleManager.callback = callback
                     wasConnectedBefore = true
+                    viewModel.resetWaypointCount()
                     // Relancer le keep-alive sur le nouveau lifecycleScope
                     startKeepAlive()
                     // Relancer la session GPS (la précédente a été fermée dans prepareForRecreation)
-                    gpsTracker?.startSession(System.currentTimeMillis())
-                    viewModel.resetWaypointCount()
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        gpsTracker?.startSession(System.currentTimeMillis())
+                    }
                 } else {
                     retainedBleManager = null
                     bleManager = GoProBleManager(context.applicationContext)

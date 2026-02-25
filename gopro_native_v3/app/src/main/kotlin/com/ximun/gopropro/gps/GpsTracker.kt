@@ -2,7 +2,7 @@ package com.ximun.gopropro.gps
 
 import android.content.Context
 import android.location.Location
-import android.os.Looper
+import android.os.HandlerThread
 import android.util.Log
 import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationCallback
@@ -35,7 +35,8 @@ class GpsTracker(
     private val gpxWriter = GpxWriter(context)
 
     // État GPS
-    private var currentLocation: Location? = null
+    @Volatile private var currentLocation: Location? = null
+    private var locationThread: HandlerThread? = null
 
     // État de la session
     private var sessionStartMs: Long = 0L
@@ -78,10 +79,12 @@ class GpsTracker(
 
         if (gpxWriter.openSession(sessionStartMs)) {
             try {
+                locationThread?.quit()
+                locationThread = HandlerThread("GpsTrackerThread").also { it.start() }
                 fusedClient.requestLocationUpdates(
                     locationRequest,
                     locationCallback,
-                    Looper.getMainLooper()
+                    locationThread!!.looper
                 )
                 Log.d(TAG, "Session GPS démarrée")
             } catch (e: Exception) {
@@ -146,6 +149,8 @@ class GpsTracker(
     /** Ferme la session GPX et arrête le GPS. Appelé à la déconnexion GoPro. */
     fun endSession() {
         fusedClient.removeLocationUpdates(locationCallback)
+        locationThread?.quit()
+        locationThread = null
         currentLocation = null
         if (gpxWriter.isOpen) {
             gpxWriter.closeSession()
