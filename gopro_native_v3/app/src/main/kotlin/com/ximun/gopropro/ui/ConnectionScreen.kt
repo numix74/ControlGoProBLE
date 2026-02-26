@@ -72,86 +72,87 @@ fun ConnectionScreen(
             )
             .padding(24.dp)
     ) {
-        // Blur effect background (simulé par un cercle radial)
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .align(Alignment.TopEnd)
-                .offset(x = 50.dp, y = (-50).dp)
-                .alpha(0.1f)
-                .background(Color(0xFF00B0FF), CircleShape)
-        )
+        // Blur effect background — masqué en landscape (écran court, découpe le cercle en pilule)
+        if (!isLandscape) {
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 50.dp, y = (-50).dp)
+                    .alpha(0.1f)
+                    .background(Color(0xFF00B0FF), CircleShape)
+            )
+        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (isLandscape) Modifier.widthIn(max = 480.dp) else Modifier)
-                .align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Header
-            Box(contentAlignment = Alignment.Center) {
-                // Ping animation (seulement si BT activé)
-                if (isBluetoothEnabled) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .scale(pingScale)
-                            .alpha(pingAlpha)
-                            .border(1.dp, Color(0xFF00B0FF), CircleShape)
+        if (isLandscape) {
+            // Landscape : Row — icône+titre à gauche, carte de connexion à droite
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .align(Alignment.Center),
+                horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Colonne gauche : icône BT + titre
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (isBluetoothEnabled) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .scale(pingScale)
+                                    .alpha(pingAlpha)
+                                    .border(1.dp, Color(0xFF00B0FF), CircleShape)
+                            )
+                        }
+                        Surface(
+                            modifier = Modifier.size(56.dp),
+                            shape = CircleShape,
+                            color = if (isBluetoothEnabled) Color(0xFF00B0FF).copy(alpha = 0.1f) else Color(0xFFEF4444).copy(alpha = 0.1f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isBluetoothEnabled) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
+                                    contentDescription = null,
+                                    tint = if (isBluetoothEnabled) Color(0xFF00B0FF) else Color(0xFFEF4444),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.connection_title),
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        text = stringResource(R.string.connection_subtitle),
+                        color = Color(0xFF00B0FF),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 4.sp,
+                        modifier = Modifier.alpha(0.8f)
                     )
                 }
 
+                // Colonne droite : carte statut + bouton
                 Surface(
-                    modifier = Modifier.size(80.dp),
-                    shape = CircleShape,
-                    color = if (isBluetoothEnabled) Color(0xFF00B0FF).copy(alpha = 0.1f) else Color(0xFFEF4444).copy(alpha = 0.1f)
+                    modifier = Modifier.weight(1f),
+                    color = Color.White.copy(alpha = 0.03f),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BoxDefaults.outlinedBorder
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isBluetoothEnabled) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
-                            contentDescription = null,
-                            tint = if (isBluetoothEnabled) Color(0xFF00B0FF) else Color(0xFFEF4444),
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = stringResource(R.string.connection_title),
-                color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 2.sp
-            )
-
-            Text(
-                text = stringResource(R.string.connection_subtitle),
-                color = Color(0xFF00B0FF),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 4.sp,
-                modifier = Modifier.alpha(0.8f)
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Card Status
-            Surface(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
-                color = Color.White.copy(alpha = 0.03f),
-                shape = RoundedCornerShape(24.dp),
-                border = BoxDefaults.outlinedBorder
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(
                             text = stringResource(R.string.connection_status_label),
                             color = Color.White.copy(alpha = 0.5f),
@@ -159,22 +160,14 @@ fun ConnectionScreen(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 2.sp
                         )
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             val indicatorColor = when {
                                 !isBluetoothEnabled -> Color(0xFFEF4444)
                                 isBleReady -> Color.Green
                                 else -> Color(0xFFF59E0B)
                             }
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .background(indicatorColor, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Box(modifier = Modifier.size(10.dp).background(indicatorColor, CircleShape))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = when {
                                     !isBluetoothEnabled -> stringResource(R.string.connection_status_bt_off)
@@ -182,64 +175,189 @@ fun ConnectionScreen(
                                     else -> stringResource(R.string.connection_status_init)
                                 },
                                 color = Color.White,
-                                fontSize = 24.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Black
                             )
                         }
-                    }
-
-                    Text(
-                        text = when {
-                            !isBluetoothEnabled -> stringResource(R.string.connection_msg_bt_off)
-                            isBleReady -> stringResource(R.string.connection_msg_bt_ready)
-                            else -> stringResource(R.string.connection_msg_bt_init)
-                        },
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Button(
-                        onClick = {
-                            isScanning = true
-                            onConnect()
-                        },
-                        modifier = Modifier.fillMaxWidth().height(64.dp),
-                        enabled = isBleReady && isBluetoothEnabled && !isScanning,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isScanning) Color.DarkGray else Color(0xFF00B0FF),
-                            contentColor = Color.Black
+                        Text(
+                            text = when {
+                                !isBluetoothEnabled -> stringResource(R.string.connection_msg_bt_off)
+                                isBleReady -> stringResource(R.string.connection_msg_bt_ready)
+                                else -> stringResource(R.string.connection_msg_bt_init)
+                            },
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp
                         )
-                    ) {
-                        if (isScanning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color(0xFF00B0FF),
-                                strokeWidth = 2.dp
+                        Button(
+                            onClick = {
+                                isScanning = true
+                                onConnect()
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            enabled = isBleReady && isBluetoothEnabled && !isScanning,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isScanning) Color.DarkGray else Color(0xFF00B0FF),
+                                contentColor = Color.Black
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(stringResource(R.string.connection_btn_scan), fontWeight = FontWeight.Bold)
-                        } else {
-                            Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(stringResource(R.string.connection_btn_connect), fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                        ) {
+                            if (isScanning) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color(0xFF00B0FF), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(stringResource(R.string.connection_btn_scan), fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(stringResource(R.string.connection_btn_connect), fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                            }
                         }
                     }
                 }
             }
+        } else {
+            // Portrait : layout colonne original
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (isBluetoothEnabled) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .scale(pingScale)
+                                .alpha(pingAlpha)
+                                .border(1.dp, Color(0xFF00B0FF), CircleShape)
+                        )
+                    }
+                    Surface(
+                        modifier = Modifier.size(80.dp),
+                        shape = CircleShape,
+                        color = if (isBluetoothEnabled) Color(0xFF00B0FF).copy(alpha = 0.1f) else Color(0xFFEF4444).copy(alpha = 0.1f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isBluetoothEnabled) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
+                                contentDescription = null,
+                                tint = if (isBluetoothEnabled) Color(0xFF00B0FF) else Color(0xFFEF4444),
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                    }
+                }
 
-            Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            Text(
-                text = stringResource(R.string.connection_footer),
-                color = Color.White.copy(alpha = 0.2f),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp
-            )
+                Text(
+                    text = stringResource(R.string.connection_title),
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.sp
+                )
+                Text(
+                    text = stringResource(R.string.connection_subtitle),
+                    color = Color(0xFF00B0FF),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 4.sp,
+                    modifier = Modifier.alpha(0.8f)
+                )
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
+                    color = Color.White.copy(alpha = 0.03f),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BoxDefaults.outlinedBorder
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.connection_status_label),
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            ) {
+                                val indicatorColor = when {
+                                    !isBluetoothEnabled -> Color(0xFFEF4444)
+                                    isBleReady -> Color.Green
+                                    else -> Color(0xFFF59E0B)
+                                }
+                                Box(modifier = Modifier.size(12.dp).background(indicatorColor, CircleShape))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = when {
+                                        !isBluetoothEnabled -> stringResource(R.string.connection_status_bt_off)
+                                        isBleReady -> stringResource(R.string.connection_status_ready)
+                                        else -> stringResource(R.string.connection_status_init)
+                                    },
+                                    color = Color.White,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+                        Text(
+                            text = when {
+                                !isBluetoothEnabled -> stringResource(R.string.connection_msg_bt_off)
+                                isBleReady -> stringResource(R.string.connection_msg_bt_ready)
+                                else -> stringResource(R.string.connection_msg_bt_init)
+                            },
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = {
+                                isScanning = true
+                                onConnect()
+                            },
+                            modifier = Modifier.fillMaxWidth().height(64.dp),
+                            enabled = isBleReady && isBluetoothEnabled && !isScanning,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isScanning) Color.DarkGray else Color(0xFF00B0FF),
+                                contentColor = Color.Black
+                            )
+                        ) {
+                            if (isScanning) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color(0xFF00B0FF), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(stringResource(R.string.connection_btn_scan), fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(stringResource(R.string.connection_btn_connect), fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = stringResource(R.string.connection_footer),
+                    color = Color.White.copy(alpha = 0.2f),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
+                )
+            }
         }
     }
 
