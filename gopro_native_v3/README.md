@@ -11,8 +11,19 @@
 
 ## 📸 Screenshots
 
-<!-- TODO: ajouter captures écran portrait + paysage -->
-> _Screenshots à venir — Connection · Dashboard · Settings · Floating Bubble_
+<p align="center">
+  <img src="assets/screenshots/01_connection.jpg" width="180" alt="Connection screen"/>
+  <img src="assets/screenshots/02_dashboard_ready.jpg" width="180" alt="Dashboard — ready"/>
+  <img src="assets/screenshots/03_dashboard_recording.jpg" width="180" alt="Dashboard — recording + countdown"/>
+  <img src="assets/screenshots/04_settings.jpg" width="180" alt="Settings"/>
+</p>
+<p align="center">
+  <img src="assets/screenshots/05_presets.jpg" width="180" alt="Presets"/>
+  <img src="assets/screenshots/06_status.jpg" width="180" alt="System Status"/>
+  <img src="assets/screenshots/07_bubble.jpg" width="180" alt="Floating bubble overlay"/>
+</p>
+
+> **Left to right:** Connection · Dashboard ready · Dashboard recording · Settings · Presets · System Status · Floating Bubble
 
 ---
 
