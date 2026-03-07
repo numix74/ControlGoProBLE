@@ -27,7 +27,7 @@ class GpxWriter(private val context: Context) {
 
     companion object {
         private const val TAG = "GpxWriter"
-        private const val FOLDER_NAME = "GoProPro/GPX"
+        private const val FOLDER_NAME = "AirBubble/GPX"
     }
 
     private var outputStream: OutputStream? = null
