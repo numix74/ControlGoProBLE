@@ -128,7 +128,7 @@ class GpxWriter(private val context: Context) {
     ) {
         val w = writer ?: return
         try {
-            val hasGps = location != null
+            val hasGps = location != null && (location.latitude != 0.0 || location.longitude != 0.0)
             val lat = location?.latitude ?: 0.0
             val lon = location?.longitude ?: 0.0
             val alt = location?.altitude ?: 0.0
