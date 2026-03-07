@@ -34,6 +34,7 @@ class GpxWriter(private val context: Context) {
     private var writer: BufferedWriter? = null
     private var sessionFileName: String = ""
     private var waypointCount = 0
+    private var gpsWaypointCount = 0   // waypoints avec coordonnées GPS valides
     private var mediaStoreUri: Uri? = null
     private var lastDirectFile: File? = null
 
@@ -98,6 +99,7 @@ class GpxWriter(private val context: Context) {
 
     private fun initWriter() {
         waypointCount = 0
+        gpsWaypointCount = 0
         writer = BufferedWriter(OutputStreamWriter(outputStream!!, Charsets.UTF_8))
         writeHeader()
         Log.d(TAG, "GPX session opened: $sessionFileName")
@@ -165,6 +167,7 @@ class GpxWriter(private val context: Context) {
             )
             w.flush()
             waypointCount++
+            if (hasGps) gpsWaypointCount++
             Log.d(TAG, "Waypoint: $wptName @ $desc")
         } catch (e: Exception) {
             Log.e(TAG, "addWaypoint error: ${e.message}")
@@ -173,6 +176,7 @@ class GpxWriter(private val context: Context) {
 
     fun closeSession() {
         val count = waypointCount
+        val gpsCount = gpsWaypointCount
         val uriToDelete = mediaStoreUri
         val fileToDelete = lastDirectFile
         try {
@@ -190,21 +194,22 @@ class GpxWriter(private val context: Context) {
             lastDirectFile = null
             sessionFileName = ""
             waypointCount = 0
+            gpsWaypointCount = 0
         }
+        // Garder uniquement si au moins 1 waypoint a des coordonnées GPS valides
+        val shouldDelete = gpsCount == 0
         if (uriToDelete != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (count == 0) {
-                // Supprimer : IS_PENDING=1 garantit que delete() fonctionne depuis notre app
+            if (shouldDelete) {
                 val deleted = context.contentResolver.delete(uriToDelete, null, null)
-                Log.d(TAG, "GPX vide supprimé (deleted=$deleted)")
+                Log.d(TAG, "GPX supprimé (0 GPS, $count waypoints no-GPS, deleted=$deleted)")
             } else {
-                // Finaliser : rendre le fichier visible aux autres apps
                 val cv = ContentValues().apply { put(MediaStore.Files.FileColumns.IS_PENDING, 0) }
                 context.contentResolver.update(uriToDelete, cv, null, null)
-                Log.d(TAG, "GPX finalisé ($count waypoints)")
+                Log.d(TAG, "GPX finalisé ($gpsCount/$count waypoints avec GPS)")
             }
-        } else if (count == 0) {
+        } else if (shouldDelete) {
             fileToDelete?.delete()
-            Log.d(TAG, "GPX vide supprimé (direct file)")
+            Log.d(TAG, "GPX supprimé (0 GPS, direct file)")
         }
     }
 
