@@ -63,6 +63,9 @@ class GpxWriter(private val context: Context) {
             put(MediaStore.Files.FileColumns.DISPLAY_NAME, sessionFileName)
             put(MediaStore.Files.FileColumns.MIME_TYPE, "application/gpx+xml")
             put(MediaStore.Files.FileColumns.RELATIVE_PATH, "Documents/$FOLDER_NAME")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Files.FileColumns.IS_PENDING, 1)
+            }
         }
         val uri = context.contentResolver.insert(
             MediaStore.Files.getContentUri("external"), cv
@@ -188,18 +191,20 @@ class GpxWriter(private val context: Context) {
             sessionFileName = ""
             waypointCount = 0
         }
-        // Supprimer le fichier si aucun waypoint (session sans événement enregistré)
-        if (count == 0) {
-            try {
-                if (uriToDelete != null) {
-                    context.contentResolver.delete(uriToDelete, null, null)
-                } else {
-                    fileToDelete?.delete()
-                }
-                Log.d(TAG, "GPX vide supprimé (aucun waypoint)")
-            } catch (e: Exception) {
-                Log.e(TAG, "Suppression GPX vide: ${e.message}")
+        if (uriToDelete != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (count == 0) {
+                // Supprimer : IS_PENDING=1 garantit que delete() fonctionne depuis notre app
+                val deleted = context.contentResolver.delete(uriToDelete, null, null)
+                Log.d(TAG, "GPX vide supprimé (deleted=$deleted)")
+            } else {
+                // Finaliser : rendre le fichier visible aux autres apps
+                val cv = ContentValues().apply { put(MediaStore.Files.FileColumns.IS_PENDING, 0) }
+                context.contentResolver.update(uriToDelete, cv, null, null)
+                Log.d(TAG, "GPX finalisé ($count waypoints)")
             }
+        } else if (count == 0) {
+            fileToDelete?.delete()
+            Log.d(TAG, "GPX vide supprimé (direct file)")
         }
     }
 
