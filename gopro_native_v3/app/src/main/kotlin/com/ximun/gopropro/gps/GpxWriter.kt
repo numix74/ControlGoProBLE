@@ -46,7 +46,7 @@ class GpxWriter(private val context: Context) {
         }
         return try {
             val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-            sessionFileName = "gopro_${sdf.format(Date(sessionStartTime))}.gpx"
+            sessionFileName = "${sdf.format(Date(sessionStartTime))}.gpx"
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 openViaMediaStore()
