@@ -73,6 +73,7 @@ class GoProConnectionManager(
     private var lastConnectedTimestamp = 0L
     private var wasRecording = false
     @Volatile private var lastCommandSentAt: Long = 0L
+    @Volatile private var lastKeepAliveSentAt: Long = 0L
     private val bleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -109,6 +110,12 @@ class GoProConnectionManager(
                                 performInitialPolling()
                             }
                         } else {
+                            val now = System.currentTimeMillis()
+                            val sinceLastKA = now - lastKeepAliveSentAt
+                            val sinceConnected = now - lastConnectedTimestamp
+                            Log.w(TAG, "DÉCONNEXION — reason=0x${reason.toString(16).uppercase()} | " +
+                                "dernier KA il y a ${sinceLastKA}ms | " +
+                                "connecté depuis ${sinceConnected}ms (${sinceConnected/1000}s)")
                             keepAliveJob?.cancel()
                             lifecycleScope.launch(Dispatchers.IO) { gpsTracker?.endSession() }
                             wasRecording = false
@@ -405,15 +412,22 @@ class GoProConnectionManager(
     private fun startKeepAlive() {
         keepAliveJob?.cancel()
         lastCommandSentAt = System.currentTimeMillis()
+        lastKeepAliveSentAt = lastCommandSentAt
         keepAliveJob = lifecycleScope.launch {
             while (true) {
                 delay(3000)
                 if (viewModel.uiState.value.isConnected &&
                     System.currentTimeMillis() - lastCommandSentAt >= 3000L) {
+                    val now = System.currentTimeMillis()
+                    val sinceLastKA = now - lastKeepAliveSentAt
+                    Log.d(TAG, "KEEP_ALIVE envoyé (intervalle depuis dernier KA: ${sinceLastKA}ms)")
+                    lastKeepAliveSentAt = now
                     bleManager.sendGoProCommand(
                         GoProConstants.COMMAND_CHAR_UUID,
                         byteArrayOf(GoProConstants.CMD_KEEP_ALIVE.toByte(), 1, GoProConstants.CMD_KEEP_ALIVE_VAL.toByte())
                     )
+                } else if (viewModel.uiState.value.isConnected) {
+                    Log.d(TAG, "KEEP_ALIVE skippé (commande récente il y a ${System.currentTimeMillis() - lastCommandSentAt}ms)")
                 }
             }
         }
