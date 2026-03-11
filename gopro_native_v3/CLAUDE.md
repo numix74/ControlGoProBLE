@@ -96,3 +96,27 @@ All GoPro command bytes, status IDs, setting IDs, and query IDs are defined in `
 - ProGuard enabled in release builds
 - Multidex enabled
 - Configuration cache enabled
+
+## Bugs connus
+
+### APD (Auto Power Down) laissé à "Jamais" après déconnexion
+**Symptôme** : Quand l'app se déconnecte (perte signal ou intentionnel), la caméra garde le
+setting 59 à 0 (Jamais) même si l'utilisateur avait défini une autre durée (ex: 5 min).
+La caméra ne s'éteindra plus jamais automatiquement jusqu'à ce que l'utilisateur la reconfigure.
+
+**Cause** : L'app force `59=0` en premier plan pour maintenir la connexion BLE (HERO11 Mini).
+`restoreAutoOff()` est appelé uniquement dans `setAppForeground(false)` (onPause).
+Si la déconnexion survient alors que l'app est encore au premier plan (perte de signal,
+ou déconnexion intentionnelle via bouton), `restoreAutoOff()` n'est jamais appelé.
+
+**Fichiers concernés** : `GoProConnectionManager.kt` — `disconnect()`, `onConnectionStatusChanged`
+
+**Fix appliqué (Fix B — SharedPreferences)** — session 2026-03-12 :
+- `disableAutoOff()` : lit prefs si `savedAutoOffValue == null`, écrit dans prefs
+- `updateSetting(59, v)` : persiste dans prefs
+- `disconnect()` et `sendSleep()` : appellent `restoreAutoOff()` avant de couper
+- `restoreAutoOff()` : fallback prefs si `savedAutoOffValue == null`
+
+**Contexte doc officielle** (https://gopro.github.io/OpenGoPro/ble/features/control) :
+Le timer APD est reset par "sets a setting". HERO11 Mini quirk : ignore les writes même-valeur →
+seul `59=0` (désactivation du timer) est fiable. Keep Alive seul (toutes les 3s) ne suffit pas.

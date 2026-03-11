@@ -26,6 +26,8 @@
     <string name="connection_status_bt_off">BT DESACTIVAT</string>
     <string name="connection_status_ready">LLEST</string>
     <string name="connection_status_init">INICIALITZANT…</string>
+    <string name="connection_status_loading">SINCRONITZANT…</string>
+    <string name="connection_msg_loading">Carregant les dades de la càmera, espereu…</string>
     <string name="connection_msg_bt_off">El Bluetooth està desactivat. Activa\'l a la configuració del teu telèfon.</string>
     <string name="connection_msg_bt_ready">El servei Bluetooth està llest. Pots iniciar la connexió.</string>
     <string name="connection_msg_bt_init">Si us plau, espereu mentre s\'inicialitza el servei Bluetooth…</string>

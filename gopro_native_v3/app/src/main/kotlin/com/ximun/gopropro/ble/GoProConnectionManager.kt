@@ -45,6 +45,7 @@ class GoProConnectionManager(
         private const val MAX_RECONNECT_ATTEMPTS = 3
         private const val PREFS_NAME = "gopro_prefs"
         private const val KEY_LAST_MAC = "last_device_mac"
+        private const val KEY_PREFERRED_APD = "pref_apd"
 
         /**
          * BleManager conservé entre deux recréations d'Activity (changement de langue, rotation…).
@@ -67,13 +68,16 @@ class GoProConnectionManager(
 
     private lateinit var bleManager: GoProBleManager
     private var keepAliveJob: Job? = null
+    private var activityHeartbeatJob: Job? = null
     private var reconnectJob: Job? = null
     private var isDestroyed = false
+    @Volatile private var isAppForeground = true
     private var wasConnectedBefore = false
     private var lastConnectedTimestamp = 0L
     private var wasRecording = false
     @Volatile private var lastCommandSentAt: Long = 0L
     @Volatile private var lastKeepAliveSentAt: Long = 0L
+    @Volatile private var savedAutoOffValue: Int? = null
     private val bleScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -117,6 +121,9 @@ class GoProConnectionManager(
                                 "dernier KA il y a ${sinceLastKA}ms | " +
                                 "connecté depuis ${sinceConnected}ms (${sinceConnected/1000}s)")
                             keepAliveJob?.cancel()
+                            activityHeartbeatJob?.cancel()
+                            activityHeartbeatJob = null
+                            savedAutoOffValue = null
                             lifecycleScope.launch(Dispatchers.IO) { gpsTracker?.endSession() }
                             wasRecording = false
                             // 0x13 (PEER USER) = caméra a fermé la connexion délibérément
@@ -140,8 +147,9 @@ class GoProConnectionManager(
                     bleManager.callback = callback
                     wasConnectedBefore = true
                     viewModel.resetWaypointCount()
-                    // Relancer le keep-alive sur le nouveau lifecycleScope
+                    // Relancer le keep-alive et le heartbeat APD sur le nouveau lifecycleScope
                     startKeepAlive()
+                    if (isAppForeground) disableAutoOff()
                     // Relancer la session GPS (la précédente a été fermée dans prepareForRecreation)
                     lifecycleScope.launch(Dispatchers.IO) {
                         gpsTracker?.startSession(System.currentTimeMillis())
@@ -164,6 +172,8 @@ class GoProConnectionManager(
     fun prepareForRecreation() {
         Log.d(TAG, "prepareForRecreation: conservation du bleManager pour la nouvelle Activity")
         keepAliveJob?.cancel()
+        activityHeartbeatJob?.cancel()
+        activityHeartbeatJob = null
         reconnectJob?.cancel()
         if (::bleManager.isInitialized) {
             retainedBleManager = bleManager
@@ -175,6 +185,8 @@ class GoProConnectionManager(
     fun destroy() {
         isDestroyed = true
         keepAliveJob?.cancel()
+        activityHeartbeatJob?.cancel()
+        activityHeartbeatJob = null
         reconnectJob?.cancel()
         retainedBleManager = null
         gpsTracker?.endSession()
@@ -326,6 +338,7 @@ class GoProConnectionManager(
     fun disconnect() {
         wasConnectedBefore = false
         reconnectJob?.cancel()
+        restoreAutoOff()
         bleManager.disconnect().enqueue()
     }
 
@@ -350,6 +363,7 @@ class GoProConnectionManager(
     fun sendSleep() {
         wasConnectedBefore = false
         reconnectJob?.cancel()
+        restoreAutoOff()
         bleCommand(
             GoProConstants.COMMAND_CHAR_UUID,
             byteArrayOf(GoProConstants.CMD_SLEEP.toByte())
@@ -401,6 +415,15 @@ class GoProConnectionManager(
     }
 
     fun updateSetting(settingId: Int, value: Int) {
+        if (settingId == GoProConstants.SETTING_ID_AUTO_POWER_DOWN && isAppForeground) {
+            // En premier plan : sauvegarder la préférence utilisateur pour restauration en arrière-plan.
+            // Ne PAS envoyer à la caméra — le heartbeat maintient 59=0 pour la connexion HERO11 Mini.
+            // L'UI affiche la valeur choisie (mise à jour optimiste dans le ViewModel par MainActivity).
+            savedAutoOffValue = value
+            prefs.edit().putInt(KEY_PREFERRED_APD, value).apply()
+            Log.d(TAG, "APD préférence sauvegardée: $value (caméra maintenue à 59=0 par heartbeat)")
+            return
+        }
         bleCommand(
             GoProConstants.SETTINGS_CHAR_UUID,
             byteArrayOf(settingId.toByte(), 1, value.toByte())
@@ -431,6 +454,98 @@ class GoProConnectionManager(
                 }
             }
         }
+        // Heartbeat démarré par disableAutoOff() après chargement des settings, pas ici.
+    }
+
+    /**
+     * Force le setting 59 (Auto Power Down) à 0 (Jamais) pour maintenir la connexion.
+     * Sauvegarde la valeur préférée de l'utilisateur pour restauration en arrière-plan.
+     * Démarre ensuite le heartbeat APD qui ré-envoie 59=0 toutes les 5s.
+     */
+    private fun disableAutoOff() {
+        val currentValue = viewModel.uiState.value.settings[GoProConstants.SETTING_ID_AUTO_POWER_DOWN]
+        if (currentValue == null) {
+            Log.w(TAG, "disableAutoOff: setting 59 absent, heartbeat reporté")
+            return
+        }
+        // Sauvegarder la préférence utilisateur (priorité : mémoire > prefs > valeur caméra)
+        if (savedAutoOffValue == null) {
+            val fromPrefs = prefs.getInt(KEY_PREFERRED_APD, -1)
+            savedAutoOffValue = if (fromPrefs >= 0) fromPrefs else currentValue
+        }
+        prefs.edit().putInt(KEY_PREFERRED_APD, savedAutoOffValue!!).apply()
+        // Afficher la préférence utilisateur dans l'UI (pas la valeur caméra forcée à 0)
+        if (savedAutoOffValue != currentValue) {
+            viewModel.updateSettings(mapOf(GoProConstants.SETTING_ID_AUTO_POWER_DOWN to savedAutoOffValue!!))
+        }
+        Log.d(TAG, "disableAutoOff: APD=$currentValue sauvegardé=$savedAutoOffValue → forçage 59=0 (Jamais)")
+        // Forcer la caméra à APD=0 (requis HERO11 Mini pour maintenir la connexion)
+        bleCommand(GoProConstants.SETTINGS_CHAR_UUID,
+            byteArrayOf(GoProConstants.SETTING_ID_AUTO_POWER_DOWN.toByte(), 1, 0))
+        startActivityHeartbeat()
+    }
+
+    /**
+     * Restaure le setting APD à la valeur préférée de l'utilisateur.
+     * Appelé quand l'app passe en arrière-plan (sans action en cours).
+     */
+    private fun restoreAutoOff() {
+        val saved = savedAutoOffValue ?: prefs.getInt(KEY_PREFERRED_APD, -1).takeIf { it >= 0 }
+        savedAutoOffValue = null
+        if (saved != null && saved != 0 && viewModel.uiState.value.isConnected) {
+            Log.d(TAG, "restoreAutoOff: restauration APD=$saved")
+            bleManager.sendGoProCommand(GoProConstants.SETTINGS_CHAR_UUID,
+                byteArrayOf(GoProConstants.SETTING_ID_AUTO_POWER_DOWN.toByte(), 1, saved.toByte()))
+        }
+    }
+
+    /**
+     * Appelé depuis MainActivity.onResume() / onPause().
+     * En foreground : démarre le heartbeat APD (caméra reste éveillée).
+     * En background sans action : arrête le heartbeat → la caméra suit son timer APD naturel.
+     * En background avec action en cours (record/timer) : heartbeat maintenu, caméra reste active.
+     */
+    fun setAppForeground(foreground: Boolean) {
+        isAppForeground = foreground
+        if (!::bleManager.isInitialized) return
+        if (foreground) {
+            Log.d(TAG, "App premier plan — heartbeat APD démarré")
+            if (viewModel.uiState.value.isConnected) disableAutoOff()
+        } else {
+            val state = viewModel.uiState.value
+            if (state.isRecording || state.isCountdownActive) {
+                Log.d(TAG, "App arrière-plan — action en cours (recording=${state.isRecording}, countdown=${state.isCountdownActive}) — heartbeat maintenu")
+            } else {
+                Log.d(TAG, "App arrière-plan — heartbeat arrêté, APD restauré")
+                activityHeartbeatJob?.cancel()
+                activityHeartbeatJob = null
+                restoreAutoOff()
+            }
+        }
+    }
+
+    /**
+     * Reset périodique du timer APD firmware en ré-envoyant 59=0 (Jamais) toutes les 5s.
+     * Doc OpenGoPro : la caméra dort si les DEUX timers (APD + KA) tombent à zéro.
+     * Le keep-alive reset le KA timer. Ce heartbeat reset le APD timer.
+     * IMPORTANT : HERO11 Mini nécessite 59=0 (pas une valeur non-nulle, même ré-envoyée
+     * périodiquement) pour maintenir la connexion. Toujours envoyer 0.
+     */
+    private fun startActivityHeartbeat() {
+        activityHeartbeatJob?.cancel()
+        Log.d(TAG, "APD heartbeat démarré (intervalle=5s, valeur=0/Jamais)")
+        activityHeartbeatJob = lifecycleScope.launch {
+            while (true) {
+                delay(5_000)
+                if (viewModel.uiState.value.isConnected) {
+                    bleCommand(
+                        GoProConstants.SETTINGS_CHAR_UUID,
+                        byteArrayOf(GoProConstants.SETTING_ID_AUTO_POWER_DOWN.toByte(), 1, 0)
+                    )
+                    Log.d(TAG, "APD heartbeat → setting 59 = 0 (Jamais, reset timer)")
+                }
+            }
+        }
     }
 
     private suspend fun performInitialPolling() {
@@ -450,6 +565,14 @@ class GoProConnectionManager(
             Log.d(TAG, "Camera ready, starting subscriptions...")
             try {
                 subscribeToUpdates()
+                // Settings chargés → désactiver l'extinction auto si l'app est au premier plan.
+                val settingsCount = viewModel.uiState.value.settings.size
+                val hasSetting59 = viewModel.uiState.value.settings.containsKey(GoProConstants.SETTING_ID_AUTO_POWER_DOWN)
+                Log.d(TAG, "Post-subscribe: isAppForeground=$isAppForeground, settings=$settingsCount, hasSetting59=$hasSetting59")
+                if (isAppForeground) disableAutoOff()
+                // Données initiales chargées → l'écran de contrôle peut s'afficher
+                withContext(Dispatchers.Main) { viewModel.setCameraReady(true) }
+                Log.d(TAG, "Camera ready: basculement vers dashboard")
             } catch (e: Exception) {
                 Log.e(TAG, "Error subscribing", e)
             }
@@ -509,6 +632,7 @@ class GoProConnectionManager(
         packet[1] = 0x72.toByte()
         System.arraycopy(protoBytes, 0, packet, 2, protoBytes.size)
         bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, packet)
+        delay(1500) // Attendre la réponse 0xF5 (presets arrivent ~100-500ms après la commande)
         Log.d(TAG, "Subscribe: TERMINÉ")
     }
 
@@ -655,9 +779,20 @@ class GoProConnectionManager(
                 }
             }
             GoProConstants.QRY_GET_SETTINGS_VALUES, GoProConstants.RSP_ASYNC_SETTING, GoProConstants.QRY_REGISTER_SETTINGS_UPDATES -> {
-                val settingsMap = updates.mapValues { (_, v) -> convertToInt(v) }
+                val rawSettings = updates.mapValues { (_, v) -> convertToInt(v) }
+                // En foreground avec heartbeat actif : filtrer setting 59 de TOUTE source (0x12, 0x93, 0x62)
+                // pour empêcher la caméra (forcée à 0) d'écraser la préférence utilisateur.
+                // Avant le heartbeat (init) : laisser passer pour que disableAutoOff() puisse lire la valeur.
+                val settingsMap = if (isAppForeground && activityHeartbeatJob != null)
+                    rawSettings.filterKeys { it != GoProConstants.SETTING_ID_AUTO_POWER_DOWN }
+                else rawSettings
                 Log.d(TAG, "Settings reçus (${settingsMap.size} entries)")
                 viewModel.updateSettings(settingsMap)
+                // Démarrer le heartbeat dès la réception des settings initiaux (avant fin de subscribe)
+                if (isAppForeground && rawSettings.containsKey(GoProConstants.SETTING_ID_AUTO_POWER_DOWN)
+                        && activityHeartbeatJob == null) {
+                    disableAutoOff()
+                }
             }
             GoProConstants.QRY_GET_SETTING_CAPABILITIES, GoProConstants.RSP_ASYNC_CAPABILITIES, GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES -> {
                 val capsUpdate = updates.mapValues { (_, v) ->

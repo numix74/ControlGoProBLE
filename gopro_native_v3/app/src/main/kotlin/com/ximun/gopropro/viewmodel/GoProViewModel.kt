@@ -63,7 +63,10 @@ data class CameraUiState(
 
     // Préférences app
     val isDarkMode: Boolean = true,
-    val isBubbleEnabled: Boolean = true
+    val isBubbleEnabled: Boolean = true,
+
+    // Vrai quand settings + capabilities + presets + status sont tous chargés
+    val isCameraReady: Boolean = false
 )
 
 
@@ -108,7 +111,14 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateConnection(connected: Boolean) {
-        _uiState.update { it.copy(isConnected = connected) }
+        _uiState.update { it.copy(
+            isConnected = connected,
+            isCameraReady = if (!connected) false else it.isCameraReady
+        ) }
+    }
+
+    fun setCameraReady(ready: Boolean) {
+        _uiState.update { it.copy(isCameraReady = ready) }
     }
 
     fun updateBattery(level: Int) {

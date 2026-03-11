@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">GoPro V3 Pro</string>
+    <string name="app_name">GoPro V3 Pro GPS</string>
 
     <!-- ═══════════════════════════════════════════════════════ -->
     <!-- NAVIGATION                                              -->
@@ -34,6 +34,8 @@
     <string name="connection_status_bt_off">BT DÉSACTIVÉ</string>
     <string name="connection_status_ready">PRÊT</string>
     <string name="connection_status_init">INITIALISATION…</string>
+    <string name="connection_status_loading">SYNCHRONISATION…</string>
+    <string name="connection_msg_loading">Chargement des données caméra en cours…</string>
     <string name="connection_msg_bt_off">Le Bluetooth est désactivé. Activez-le dans les paramètres de votre téléphone.</string>
     <string name="connection_msg_bt_ready">Le service Bluetooth est prêt. Vous pouvez lancer la connexion.</string>
     <string name="connection_msg_bt_init">Veuillez patienter pendant l\'initialisation du service Bluetooth…</string>

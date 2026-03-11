@@ -35,6 +35,7 @@ import kotlinx.coroutines.delay
 fun ConnectionScreen(
     isBleReady: Boolean,
     isBluetoothEnabled: Boolean,
+    isLoading: Boolean = false,
     windowSizeClass: androidx.compose.material3.windowsizeclass.WindowSizeClass? = null,
     onConnect: () -> Unit
 ) {
@@ -162,6 +163,7 @@ fun ConnectionScreen(
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             val indicatorColor = when {
+                                isLoading -> Color(0xFF00B0FF)
                                 !isBluetoothEnabled -> Color(0xFFEF4444)
                                 isBleReady -> Color.Green
                                 else -> Color(0xFFF59E0B)
@@ -170,6 +172,7 @@ fun ConnectionScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = when {
+                                    isLoading -> stringResource(R.string.connection_status_loading)
                                     !isBluetoothEnabled -> stringResource(R.string.connection_status_bt_off)
                                     isBleReady -> stringResource(R.string.connection_status_ready)
                                     else -> stringResource(R.string.connection_status_init)
@@ -181,6 +184,7 @@ fun ConnectionScreen(
                         }
                         Text(
                             text = when {
+                                isLoading -> stringResource(R.string.connection_msg_loading)
                                 !isBluetoothEnabled -> stringResource(R.string.connection_msg_bt_off)
                                 isBleReady -> stringResource(R.string.connection_msg_bt_ready)
                                 else -> stringResource(R.string.connection_msg_bt_init)
@@ -195,7 +199,7 @@ fun ConnectionScreen(
                                 onConnect()
                             },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
-                            enabled = isBleReady && isBluetoothEnabled && !isScanning,
+                            enabled = isBleReady && isBluetoothEnabled && !isScanning && !isLoading,
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isScanning) Color.DarkGray else Color(0xFF00B0FF),
@@ -313,6 +317,7 @@ fun ConnectionScreen(
                         }
                         Text(
                             text = when {
+                                isLoading -> stringResource(R.string.connection_msg_loading)
                                 !isBluetoothEnabled -> stringResource(R.string.connection_msg_bt_off)
                                 isBleReady -> stringResource(R.string.connection_msg_bt_ready)
                                 else -> stringResource(R.string.connection_msg_bt_init)
@@ -328,7 +333,7 @@ fun ConnectionScreen(
                                 onConnect()
                             },
                             modifier = Modifier.fillMaxWidth().height(64.dp),
-                            enabled = isBleReady && isBluetoothEnabled && !isScanning,
+                            enabled = isBleReady && isBluetoothEnabled && !isScanning && !isLoading,
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isScanning) Color.DarkGray else Color(0xFF00B0FF),

@@ -26,6 +26,8 @@
     <string name="connection_status_bt_off">BT DISABLED</string>
     <string name="connection_status_ready">READY</string>
     <string name="connection_status_init">INITIALIZING…</string>
+    <string name="connection_status_loading">SYNCING…</string>
+    <string name="connection_msg_loading">Loading camera data, please wait…</string>
     <string name="connection_msg_bt_off">Bluetooth is disabled. Enable it in your phone settings.</string>
     <string name="connection_msg_bt_ready">Bluetooth service is ready. You can start the connection.</string>
     <string name="connection_msg_bt_init">Please wait while the Bluetooth service initializes…</string>

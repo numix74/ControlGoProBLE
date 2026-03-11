@@ -26,6 +26,8 @@
     <string name="connection_status_bt_off">BT DESGAITUTA</string>
     <string name="connection_status_ready">PREST</string>
     <string name="connection_status_init">HASIERATZEN…</string>
+    <string name="connection_status_loading">SINKRONIZATZEN…</string>
+    <string name="connection_msg_loading">Kamera datuak kargatzen, itxaron…</string>
     <string name="connection_msg_bt_off">Bluetooth-a desgaituta dago. Gaitu ezazu zure telefonoaren ezarpenetan.</string>
     <string name="connection_msg_bt_ready">Bluetooth zerbitzua prest dago. Konexioa has dezakezu.</string>
     <string name="connection_msg_bt_init">Mesedez itxaron Bluetooth zerbitzua hasieratu arte…</string>

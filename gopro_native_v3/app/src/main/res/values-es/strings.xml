@@ -26,6 +26,8 @@
     <string name="connection_status_bt_off">BT DESACTIVADO</string>
     <string name="connection_status_ready">LISTO</string>
     <string name="connection_status_init">INICIALIZANDO…</string>
+    <string name="connection_status_loading">SINCRONIZANDO…</string>
+    <string name="connection_msg_loading">Cargando datos de la cámara, espera…</string>
     <string name="connection_msg_bt_off">El Bluetooth está desactivado. Actívalo en los ajustes de tu teléfono.</string>
     <string name="connection_msg_bt_ready">El servicio Bluetooth está listo. Puedes iniciar la conexión.</string>
     <string name="connection_msg_bt_init">Por favor, espera mientras se inicializa el servicio Bluetooth…</string>

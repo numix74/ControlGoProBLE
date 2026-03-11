@@ -87,10 +87,11 @@ class MainActivity : ComponentActivity() {
             val windowSizeClass = calculateWindowSizeClass(this)
 
             GoProTheme(darkTheme = state.isDarkMode) {
-                if (!state.isConnected) {
+                if (!state.isConnected || !state.isCameraReady) {
                     ConnectionScreen(
                         isBleReady = state.isBleReady,
                         isBluetoothEnabled = state.isBluetoothEnabled,
+                        isLoading = state.isConnected && !state.isCameraReady,
                         windowSizeClass = windowSizeClass,
                         onConnect = { connectionManager.checkPermissionsAndScan(this, requestPermissionLauncher) }
                     )
@@ -149,6 +150,18 @@ class MainActivity : ComponentActivity() {
             }
             connectionManager.sendShutterCommand(true)
         }
+    }
+
+    // ── Foreground / Background ───────────────────────────────────────
+
+    override fun onResume() {
+        super.onResume()
+        connectionManager.setAppForeground(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        connectionManager.setAppForeground(false)
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────
