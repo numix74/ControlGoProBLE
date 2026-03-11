@@ -464,19 +464,16 @@ class GoProConnectionManager(
      */
     private fun disableAutoOff() {
         val currentValue = viewModel.uiState.value.settings[GoProConstants.SETTING_ID_AUTO_POWER_DOWN]
-        if (currentValue == null) {
-            Log.w(TAG, "disableAutoOff: setting 59 absent, heartbeat reporté")
-            return
-        }
         // Sauvegarder la préférence utilisateur (priorité : mémoire > prefs > valeur caméra)
         if (savedAutoOffValue == null) {
             val fromPrefs = prefs.getInt(KEY_PREFERRED_APD, -1)
             savedAutoOffValue = if (fromPrefs >= 0) fromPrefs else currentValue
         }
-        prefs.edit().putInt(KEY_PREFERRED_APD, savedAutoOffValue!!).apply()
-        // Afficher la préférence utilisateur dans l'UI (pas la valeur caméra forcée à 0)
-        if (savedAutoOffValue != currentValue) {
-            viewModel.updateSettings(mapOf(GoProConstants.SETTING_ID_AUTO_POWER_DOWN to savedAutoOffValue!!))
+        if (savedAutoOffValue != null) {
+            prefs.edit().putInt(KEY_PREFERRED_APD, savedAutoOffValue!!).apply()
+            if (currentValue != null && savedAutoOffValue != currentValue) {
+                viewModel.updateSettings(mapOf(GoProConstants.SETTING_ID_AUTO_POWER_DOWN to savedAutoOffValue!!))
+            }
         }
         Log.d(TAG, "disableAutoOff: APD=$currentValue sauvegardé=$savedAutoOffValue → forçage 59=0 (Jamais)")
         // Forcer la caméra à APD=0 (requis HERO11 Mini pour maintenir la connexion)
@@ -571,6 +568,22 @@ class GoProConnectionManager(
             Log.d(TAG, "Camera ready, starting subscriptions...")
             try {
                 subscribeToUpdates()
+                // Attendre que les données critiques soient effectivement dans le ViewModel
+                // (les réponses BLE multi-paquets peuvent arriver après les delay())
+                val readyTimeout = 10_000L
+                val startWait = System.currentTimeMillis()
+                while (System.currentTimeMillis() - startWait < readyTimeout) {
+                    val state = withContext(Dispatchers.Main) { viewModel.uiState.value }
+                    val hasSettings = state.settings.isNotEmpty()
+                    val hasCapabilities = state.capabilities.isNotEmpty()
+                    val hasPresets = state.presetGroups.isNotEmpty()
+                    if (hasSettings && hasCapabilities && hasPresets) {
+                        Log.d(TAG, "Données complètes: ${state.settings.size} settings, ${state.capabilities.size} capabilities, ${state.presetGroups.size} preset groups")
+                        break
+                    }
+                    Log.d(TAG, "Attente données: settings=$hasSettings caps=$hasCapabilities presets=$hasPresets (${System.currentTimeMillis() - startWait}ms)")
+                    delay(200)
+                }
                 // Settings chargés → désactiver l'extinction auto si l'app est au premier plan.
                 val settingsCount = viewModel.uiState.value.settings.size
                 val hasSetting59 = viewModel.uiState.value.settings.containsKey(GoProConstants.SETTING_ID_AUTO_POWER_DOWN)
