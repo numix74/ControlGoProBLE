@@ -549,17 +549,23 @@ class GoProConnectionManager(
     }
 
     private suspend fun performInitialPolling() {
-        var isReady = false
-        var attempt = 0
-        while (!isReady && attempt < 10) {
-            Log.d(TAG, "HW Info polling attempt ${attempt + 1}/10")
-            bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte()))
-            delay(2000)
-            val serial = withContext(Dispatchers.Main) {
-                viewModel.uiState.value.serialNumber
+        // Skip HW Info si on connaît déjà le numéro de série (reconnexion rapide)
+        val knownSerial = withContext(Dispatchers.Main) { viewModel.uiState.value.serialNumber }
+        var isReady = knownSerial.isNotEmpty()
+        if (isReady) {
+            Log.d(TAG, "HW Info déjà connu (serial=$knownSerial), skip polling")
+        } else {
+            var attempt = 0
+            while (!isReady && attempt < 10) {
+                Log.d(TAG, "HW Info polling attempt ${attempt + 1}/10")
+                bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, byteArrayOf(GoProConstants.CMD_GET_HARDWARE_INFO.toByte()))
+                delay(2000)
+                val serial = withContext(Dispatchers.Main) {
+                    viewModel.uiState.value.serialNumber
+                }
+                if (serial.isNotEmpty()) isReady = true
+                attempt++
             }
-            if (serial.isNotEmpty()) isReady = true
-            attempt++
         }
         if (isReady) {
             Log.d(TAG, "Camera ready, starting subscriptions...")
@@ -597,33 +603,23 @@ class GoProConnectionManager(
             GoProConstants.STATUS_ID_OVERHEATING.toByte()
         )
 
+        // Optimisé : les Register retournent déjà les valeurs initiales (doc OpenGoPro)
+        // → Get Settings (0x12), Get Capabilities (0x32), Get Status (0x13) supprimés (redondants)
         Log.d(TAG, "Subscribe: Claim Control...")
         bleManager.sendGoProCommand(GoProConstants.COMMAND_CHAR_UUID, byteArrayOf(0xF1.toByte(), 0x69.toByte(), 0x08.toByte(), 0x02.toByte()))
-        delay(1000)
+        delay(500)
 
-        Log.d(TAG, "Subscribe: Register Status Updates...")
+        Log.d(TAG, "Subscribe: Register Status Updates (+ valeurs initiales)...")
         bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_STATUS_UPDATES.toByte()) + statusIds)
-        delay(1000)
+        delay(500)
 
-        Log.d(TAG, "Subscribe: Get ALL Settings Values...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTINGS_VALUES.toByte()))
-        delay(2000)
-
-        Log.d(TAG, "Subscribe: Get ALL Capabilities...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_SETTING_CAPABILITIES.toByte()))
-        delay(2000)
-
-        Log.d(TAG, "Subscribe: Register ALL Settings Updates...")
+        Log.d(TAG, "Subscribe: Register ALL Settings Updates (+ 43 settings initiaux)...")
         bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_SETTINGS_UPDATES.toByte()))
-        delay(1000)
+        delay(700)
 
-        Log.d(TAG, "Subscribe: Register ALL Capabilities Updates...")
+        Log.d(TAG, "Subscribe: Register ALL Capabilities Updates (+ 31 capabilities initiales)...")
         bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_REGISTER_CAPABILITIES_UPDATES.toByte()))
-        delay(1000)
-
-        Log.d(TAG, "Subscribe: Get Status Values...")
-        bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()) + statusIds)
-        delay(1000)
+        delay(700)
 
         Log.d(TAG, "Subscribe: Fetch Presets...")
         val protoBytes = byteArrayOf(0x08, 0x01, 0x08, 0x02)
@@ -632,8 +628,8 @@ class GoProConnectionManager(
         packet[1] = 0x72.toByte()
         System.arraycopy(protoBytes, 0, packet, 2, protoBytes.size)
         bleManager.sendGoProCommand(GoProConstants.QUERY_CHAR_UUID, packet)
-        delay(1500) // Attendre la réponse 0xF5 (presets arrivent ~100-500ms après la commande)
-        Log.d(TAG, "Subscribe: TERMINÉ")
+        delay(700)
+        Log.d(TAG, "Subscribe: TERMINÉ (~3.1s au lieu de ~10.5s)")
     }
 
     // ── Parsing des réponses BLE ─────────────────────────────────────
