@@ -129,11 +129,11 @@ fun DashboardScreen(
                     subtitle = stringResource(R.string.dashboard_subtitle),
                     actions = {
                         Row {
-                            IconButton(onClick = onSleep) {
-                                Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
-                            }
                             IconButton(onClick = onDisconnect) {
                                 Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = Color.Gray)
+                            }
+                            IconButton(onClick = onSleep) {
+                                Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
                             }
                         }
                     }
@@ -167,11 +167,11 @@ fun DashboardScreen(
                 subtitle = stringResource(R.string.dashboard_subtitle),
                 actions = {
                     Row {
-                        IconButton(onClick = onSleep) {
-                            Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
-                        }
                         IconButton(onClick = onDisconnect) {
                             Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = Color.Gray)
+                        }
+                        IconButton(onClick = onSleep) {
+                            Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
                         }
                     }
                 }
@@ -189,8 +189,21 @@ fun DashboardScreen(
 
 @Composable
 private fun StatsSection(state: CameraUiState) {
+    val batteryIcon = when {
+        state.isCharging -> Icons.Default.BatteryChargingFull
+        state.batteryLevel <= 15 -> Icons.Default.Battery1Bar
+        state.batteryLevel <= 35 -> Icons.Default.Battery3Bar
+        state.batteryLevel <= 55 -> Icons.Default.Battery4Bar
+        state.batteryLevel <= 80 -> Icons.Default.Battery5Bar
+        else -> Icons.Default.BatteryFull
+    }
+    val batteryColor = when {
+        state.isCharging -> PrimaryTeal
+        state.batteryLevel < 20 -> Color(0xFFEF4444)
+        else -> AppPrimary
+    }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_battery), "${state.batteryLevel}%", Icons.Default.BatteryChargingFull)
+        StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_battery), "${state.batteryLevel}%", batteryIcon, batteryColor)
         StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_storage), state.storageSpace, Icons.Default.SdCard)
     }
 }
@@ -396,7 +409,7 @@ private fun RecordingControls(
 }
 
 @Composable
-fun StatusCard(modifier: Modifier, title: String, value: String, icon: ImageVector) {
+fun StatusCard(modifier: Modifier, title: String, value: String, icon: ImageVector, iconTint: Color = AppPrimary) {
     val appColors = LocalAppColors.current
     Surface(
         modifier = modifier,
@@ -404,7 +417,7 @@ fun StatusCard(modifier: Modifier, title: String, value: String, icon: ImageVect
         shape = RoundedCornerShape(20.dp)
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = AppPrimary, modifier = Modifier.size(20.dp))
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(title, color = appColors.textSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
