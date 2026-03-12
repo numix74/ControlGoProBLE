@@ -18,7 +18,7 @@ import com.google.android.gms.location.Priority
  *  - startSession()       : ouvre le fichier GPX, démarre les mises à jour GPS
  *  - onRecordingStarted() : waypoint REC_START #N
  *  - onHilight()          : waypoint HILIGHT #N (si en cours d'enregistrement)
- *  - onRecordingStopped() : waypoint REC_STOP #N (si pas de HILIGHT dans le clip)
+ *  - onRecordingStopped() : waypoint REC_STOP #N
  *  - endSession()         : ferme le fichier GPX, arrête le GPS
  *
  * Callback [onWaypointAdded] appelé à chaque waypoint → met à jour le compteur UI.
@@ -128,20 +128,15 @@ class GpsTracker(
 
     /** Appelé quand l'enregistrement GoPro s'arrête. */
     fun onRecordingStopped(timestamp: Long) {
-        // REC_STOP uniquement si aucun HILIGHT dans ce clip
-        if (!currentClipHasHilight) {
-            recStopCount++
-            Log.d(TAG, "onRecordingStopped #$recStopCount (pas de HILIGHT)")
-            gpxWriter.addWaypoint(
-                name = "REC_STOP #$recStopCount",
-                location = currentLocation,
-                timestamp = timestamp,
-                recordingStartMs = recordingStartMs
-            )
-            onWaypointAdded()
-        } else {
-            Log.d(TAG, "onRecordingStopped ignoré (clip a déjà un HILIGHT)")
-        }
+        recStopCount++
+        Log.d(TAG, "onRecordingStopped #$recStopCount")
+        gpxWriter.addWaypoint(
+            name = "REC_STOP #$recStopCount",
+            location = currentLocation,
+            timestamp = timestamp,
+            recordingStartMs = recordingStartMs
+        )
+        onWaypointAdded()
         recordingStartMs = null
         currentClipHasHilight = false
     }
