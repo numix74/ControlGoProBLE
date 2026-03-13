@@ -1,6 +1,7 @@
 package com.ximun.gopropro.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,8 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.GoProPresetMappings
 import com.ximun.gopropro.R
 import com.ximun.gopropro.proto.GoProProtos
-import com.ximun.gopropro.ui.theme.AppCard
-import com.ximun.gopropro.ui.theme.PrimaryTeal
+import com.ximun.gopropro.ui.theme.LocalAppColors
 import com.ximun.gopropro.viewmodel.CameraUiState
 
 @Composable
@@ -30,9 +30,11 @@ fun PresetsScreen(
     isLandscape: Boolean = false,
     onLoadPreset: (Int) -> Unit
 ) {
+    val appColors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(appColors.background)
             .padding(20.dp)
     ) {
         HeaderSection(
@@ -43,7 +45,7 @@ fun PresetsScreen(
 
         if (state.presetGroups.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = PrimaryTeal)
+                CircularProgressIndicator(color = appColors.accent)
             }
         } else {
             Column(
@@ -64,6 +66,7 @@ fun PresetGroupSection(
     currentPresetId: Int,
     onLoadPreset: (Int) -> Unit
 ) {
+    val appColors = LocalAppColors.current
     val groupId = if (group.hasId()) group.id.number else 0
     val groupTitleRes = GoProPresetMappings.getGroupTitleRes(groupId)
     val groupTitle = if (groupId == 0 || !listOf(1000, 1001, 1002).contains(groupId)) {
@@ -75,11 +78,11 @@ fun PresetGroupSection(
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(groupIcon, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+            Icon(groupIcon, null, tint = appColors.accent, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = groupTitle,
-                color = Color.Gray,
+                color = appColors.textSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp
@@ -102,9 +105,10 @@ fun PresetCard(
     index: Int,
     onLoadPreset: (Int) -> Unit
 ) {
-    val backgroundColor = if (isActive) PrimaryTeal.copy(alpha = 0.2f) else AppCard
-    val borderColor = if (isActive) PrimaryTeal else Color.Transparent
-    val textColor = if (isActive) PrimaryTeal else Color.White
+    val appColors = LocalAppColors.current
+    val backgroundColor = if (isActive) appColors.accent.copy(alpha = 0.15f) else appColors.card
+    val borderColor = if (isActive) appColors.accent else appColors.border
+    val nameColor = if (isActive) appColors.accent else appColors.textPrimary
 
     val iconId = if (preset.hasIcon()) preset.icon.number else 0
     val icon = GoProPresetMappings.getPresetIcon(iconId)
@@ -133,25 +137,25 @@ fun PresetCard(
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, null, tint = textColor, modifier = Modifier.size(24.dp))
+            Icon(icon, null, tint = nameColor, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = presetName,
-                    color = Color.White,
+                    color = nameColor,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
                 if (settingsLine != null) {
                     Text(
                         text = settingsLine,
-                        color = Color.Gray,
+                        color = appColors.textSecondary,
                         fontSize = 12.sp
                     )
                 }
             }
             if (isActive) {
-                Icon(Icons.Default.CheckCircle, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.CheckCircle, null, tint = appColors.accent, modifier = Modifier.size(20.dp))
             }
         }
     }

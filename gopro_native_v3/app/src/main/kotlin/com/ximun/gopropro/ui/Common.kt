@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.ximun.gopropro.ui.theme.LocalAppColors
-import com.ximun.gopropro.ui.theme.PrimaryTeal
 
 /** true si l'écran est en mode paysage (landscape) ou tablette */
 val WindowSizeClass.isLandscape: Boolean
@@ -43,7 +42,7 @@ fun HeaderSection(
             )
             Text(
                 text = subtitle,
-                color = PrimaryTeal,
+                color = appColors.accent,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp

@@ -40,7 +40,6 @@ import com.ximun.gopropro.LocaleUtils
 import com.ximun.gopropro.R
 import com.ximun.gopropro.ble.GoProConstants
 import com.ximun.gopropro.ui.theme.LocalAppColors
-import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -301,8 +300,7 @@ private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (isDarkMode) stringResource(R.string.settings_dark_mode_label)
-                           else stringResource(R.string.settings_light_mode_label),
+                    text = stringResource(R.string.settings_light_mode_label),
                     fontWeight = FontWeight.Bold,
                     color = appColors.textPrimary
                 )
@@ -310,7 +308,7 @@ private fun DarkModeToggle(isDarkMode: Boolean, onToggle: () -> Unit) {
                     Icon(
                         if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
                         null,
-                        tint = PrimaryTeal,
+                        tint = appColors.accent,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -412,11 +410,11 @@ private fun LanguagePicker(
                         Icon(
                             Icons.Default.Language,
                             null,
-                            tint = PrimaryTeal,
+                            tint = appColors.accent,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = currentLabel, color = PrimaryTeal)
+                        Text(text = currentLabel, color = appColors.accent)
                         Icon(Icons.Default.ArrowDropDown, null, tint = appColors.textSecondary)
                     }
                 }
@@ -491,13 +489,13 @@ private fun ActionSettingRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = if (feedback) feedbackLabel else actionLabel,
-                        color = if (feedback) feedbackColor else PrimaryTeal,
+                        color = if (feedback) feedbackColor else appColors.accent,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         icon, null,
-                        tint = if (feedback) feedbackColor else PrimaryTeal,
+                        tint = if (feedback) feedbackColor else appColors.accent,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -510,7 +508,7 @@ private fun ActionSettingRow(
 private fun SectionHeader(icon: ImageVector, title: String) {
     val appColors = LocalAppColors.current
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = PrimaryTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = appColors.accent, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
@@ -594,7 +592,7 @@ fun SettingDropdown(
                 ) {
                     Text(text = label, fontWeight = FontWeight.Bold, color = appColors.textPrimary)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = currentLabel, color = if (currentValue != null) PrimaryTeal else appColors.textSecondary)
+                        Text(text = currentLabel, color = if (currentValue != null) appColors.accent else appColors.textSecondary)
                         if (hasOptions) {
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = appColors.textSecondary)
                         }

@@ -26,10 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.ximun.gopropro.R
-import com.ximun.gopropro.ui.theme.AppPrimary
 import com.ximun.gopropro.ui.theme.HilightYellow
 import com.ximun.gopropro.ui.theme.LocalAppColors
-import com.ximun.gopropro.ui.theme.PrimaryTeal
 import com.ximun.gopropro.viewmodel.CameraUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -130,10 +128,10 @@ fun DashboardScreen(
                     actions = {
                         Row {
                             IconButton(onClick = onDisconnect) {
-                                Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = Color.Gray)
+                                Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = LocalAppColors.current.textSecondary)
                             }
                             IconButton(onClick = onSleep) {
-                                Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
+                                Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = LocalAppColors.current.textPrimary)
                             }
                         }
                     }
@@ -168,10 +166,10 @@ fun DashboardScreen(
                 actions = {
                     Row {
                         IconButton(onClick = onDisconnect) {
-                            Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = Color.Gray)
+                            Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = LocalAppColors.current.textSecondary)
                         }
                         IconButton(onClick = onSleep) {
-                            Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = Color.LightGray)
+                            Icon(Icons.Default.PowerSettingsNew, stringResource(R.string.dashboard_btn_sleep), tint = LocalAppColors.current.textPrimary)
                         }
                     }
                 }
@@ -189,6 +187,7 @@ fun DashboardScreen(
 
 @Composable
 private fun StatsSection(state: CameraUiState) {
+    val appColors = LocalAppColors.current
     val batteryIcon = when {
         state.isCharging -> Icons.Default.BatteryChargingFull
         state.batteryLevel <= 15 -> Icons.Default.Battery1Bar
@@ -198,13 +197,13 @@ private fun StatsSection(state: CameraUiState) {
         else -> Icons.Default.BatteryFull
     }
     val batteryColor = when {
-        state.isCharging -> PrimaryTeal
-        state.batteryLevel < 20 -> Color(0xFFEF4444)
-        else -> AppPrimary
+        state.isCharging -> appColors.accent
+        state.batteryLevel < 20 -> Color(0xFFDC2626)
+        else -> appColors.accent
     }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_battery), "${state.batteryLevel}%", batteryIcon, batteryColor)
-        StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_storage), state.storageSpace, Icons.Default.SdCard)
+        StatusCard(Modifier.weight(1f), stringResource(R.string.dashboard_stat_storage), state.storageSpace, Icons.Default.SdCard, appColors.accent)
     }
 }
 
@@ -216,11 +215,10 @@ private fun TimerSection(
     onAdjustTimer: (Int) -> Unit,
     onSnapTimer: () -> Unit
 ) {
-    val timerLabel = if (state.isCountdownActive) stringResource(R.string.dashboard_timer_countdown) else stringResource(R.string.dashboard_timer_duration)
-    val timerColor = remember(state.isCountdownActive) { if (state.isCountdownActive) HilightYellow else PrimaryTeal }
-    val showAdjust = state.isTimerModeEnabled && !state.isRecording && !state.isCountdownActive
-
     val appColors = LocalAppColors.current
+    val timerLabel = if (state.isCountdownActive) stringResource(R.string.dashboard_timer_countdown) else stringResource(R.string.dashboard_timer_duration)
+    val timerColor = if (state.isCountdownActive) HilightYellow else appColors.accent
+    val showAdjust = state.isTimerModeEnabled && !state.isRecording && !state.isCountdownActive
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -401,7 +399,7 @@ private fun RecordingControls(
             icon = Icons.Default.AutoAwesome,
             iconColor = if (state.isRecording) HilightYellow else appColors.textSecondary,
             backgroundColor = appColors.card,
-            borderColor = if (state.isRecording) HilightYellow else Color.DarkGray,
+            borderColor = if (state.isRecording) HilightYellow else appColors.border,
             enabled = state.isRecording,
             onClick = onHilight
         )
@@ -409,7 +407,7 @@ private fun RecordingControls(
 }
 
 @Composable
-fun StatusCard(modifier: Modifier, title: String, value: String, icon: ImageVector, iconTint: Color = AppPrimary) {
+fun StatusCard(modifier: Modifier, title: String, value: String, icon: ImageVector, iconTint: Color = LocalAppColors.current.accent) {
     val appColors = LocalAppColors.current
     Surface(
         modifier = modifier,
@@ -493,11 +491,11 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             icon = { Icon(Icons.Default.Videocam, null, modifier = Modifier.size(24.dp)) },
             label = { Text(stringResource(R.string.nav_tab_control), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
-                selectedIconColor = AppPrimary,
+                selectedIconColor = appColors.accent,
                 selectedTextColor = appColors.textPrimary,
                 unselectedIconColor = appColors.textSecondary,
                 unselectedTextColor = appColors.textSecondary,
-                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+                indicatorColor = appColors.accent.copy(alpha = 0.15f)
             )
         )
         NavigationRailItem(
@@ -506,11 +504,11 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             icon = { Icon(Icons.Default.Settings, null, modifier = Modifier.size(24.dp)) },
             label = { Text(stringResource(R.string.nav_tab_settings), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
-                selectedIconColor = AppPrimary,
+                selectedIconColor = appColors.accent,
                 selectedTextColor = appColors.textPrimary,
                 unselectedIconColor = appColors.textSecondary,
                 unselectedTextColor = appColors.textSecondary,
-                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+                indicatorColor = appColors.accent.copy(alpha = 0.15f)
             )
         )
         NavigationRailItem(
@@ -519,11 +517,11 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             icon = { Icon(Icons.Default.DashboardCustomize, null, modifier = Modifier.size(24.dp)) },
             label = { Text(stringResource(R.string.nav_tab_presets), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
-                selectedIconColor = AppPrimary,
+                selectedIconColor = appColors.accent,
                 selectedTextColor = appColors.textPrimary,
                 unselectedIconColor = appColors.textSecondary,
                 unselectedTextColor = appColors.textSecondary,
-                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+                indicatorColor = appColors.accent.copy(alpha = 0.15f)
             )
         )
         NavigationRailItem(
@@ -532,11 +530,11 @@ fun DashboardNavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             icon = { Icon(Icons.Default.Info, null, modifier = Modifier.size(24.dp)) },
             label = { Text(stringResource(R.string.nav_tab_status), fontSize = 10.sp) },
             colors = NavigationRailItemDefaults.colors(
-                selectedIconColor = AppPrimary,
+                selectedIconColor = appColors.accent,
                 selectedTextColor = appColors.textPrimary,
                 unselectedIconColor = appColors.textSecondary,
                 unselectedTextColor = appColors.textSecondary,
-                indicatorColor = AppPrimary.copy(alpha = 0.15f)
+                indicatorColor = appColors.accent.copy(alpha = 0.15f)
             )
         )
         Spacer(modifier = Modifier.weight(1f))
@@ -550,7 +548,7 @@ fun NavItem(title: String, icon: ImageVector, isSelected: Boolean, onClick: () -
         modifier = Modifier.clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, null, tint = if (isSelected) AppPrimary else appColors.textSecondary, modifier = Modifier.size(24.dp))
+        Icon(icon, null, tint = if (isSelected) appColors.accent else appColors.textSecondary, modifier = Modifier.size(24.dp))
         Text(title, color = if (isSelected) appColors.textPrimary else appColors.textSecondary, fontSize = 10.sp)
     }
 }

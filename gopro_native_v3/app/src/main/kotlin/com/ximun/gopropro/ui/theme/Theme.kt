@@ -38,23 +38,32 @@ data class AppColors(
     val card: Color,
     val textPrimary: Color,
     val textSecondary: Color,
-    val border: Color
+    val border: Color,
+    val accent: Color,        // icônes et accents (teal en sombre, bleu foncé en clair)
+    val progressTrack: Color, // fond des barres de progression
+    val divider: Color        // séparateurs entre lignes
 )
 
 val DarkAppColors = AppColors(
     background = AppBackground,
     card = AppCard,
     textPrimary = Color.White,
-    textSecondary = Color.Gray,
-    border = Color.White.copy(alpha = 0.05f)
+    textSecondary = Color(0xFF94A3B8),
+    border = Color.White.copy(alpha = 0.08f),
+    accent = PrimaryTeal,
+    progressTrack = Color.White.copy(alpha = 0.1f),
+    divider = Color.White.copy(alpha = 0.06f)
 )
 
 val LightAppColors = AppColors(
-    background = LightBackground,
-    card = LightCard,
-    textPrimary = Color(0xFF1E293B),
-    textSecondary = Color(0xFF64748B),
-    border = Color(0xFFE2E8F0)
+    background = Color.White,
+    card = Color.White,
+    textPrimary = Color(0xFF0F172A),
+    textSecondary = Color(0xFF374151),  // plus sombre pour e-ink
+    border = Color(0xFF94A3B8),          // bordure visible (était quasi-invisible)
+    accent = Color(0xFF1E3A5F),          // bleu foncé lisible sur e-ink
+    progressTrack = Color(0xFFCBD5E1),  // gris clair visible
+    divider = Color(0xFFCBD5E1)          // séparateur visible
 )
 
 val LocalAppColors = staticCompositionLocalOf { DarkAppColors }
