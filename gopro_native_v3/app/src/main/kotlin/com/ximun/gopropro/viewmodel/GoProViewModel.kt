@@ -4,6 +4,7 @@ import java.util.Locale
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -75,15 +76,22 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         private const val PREFS_NAME = "gopro_prefs"
         private const val KEY_TIMER_VALUE = "timer_value"
+        private const val KEY_DARK_MODE = "dark_mode"
         private const val DEFAULT_TIMER = 15
     }
 
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val savedTimer = prefs.getInt(KEY_TIMER_VALUE, DEFAULT_TIMER).coerceIn(5, 300)
+    private val savedDarkMode = prefs.getBoolean(KEY_DARK_MODE, true)
+
+    init {
+        Log.d("GoProViewModel", "🔧 Init: darkMode from prefs=$savedDarkMode (KEY=$KEY_DARK_MODE)")
+    }
 
     private val _uiState = MutableStateFlow(CameraUiState(
         initialTimerValue = savedTimer,
-        currentTimerValue = savedTimer
+        currentTimerValue = savedTimer,
+        isDarkMode = savedDarkMode
     ))
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
@@ -103,7 +111,12 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleDarkMode() {
-        _uiState.update { it.copy(isDarkMode = !it.isDarkMode) }
+        _uiState.update {
+            val newMode = !it.isDarkMode
+            prefs.edit().putBoolean(KEY_DARK_MODE, newMode).apply()
+            Log.d("GoProViewModel", "🌓 toggleDarkMode: $newMode (saved to prefs)")
+            it.copy(isDarkMode = newMode)
+        }
     }
 
     fun toggleBubble() {
@@ -113,7 +126,13 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
     fun updateConnection(connected: Boolean) {
         _uiState.update { it.copy(
             isConnected = connected,
-            isCameraReady = if (!connected) false else it.isCameraReady
+            isCameraReady = if (!connected) false else it.isCameraReady,
+            // Vider les données caméra à la déconnexion pour que le readiness check
+            // attende correctement les nouvelles données à la reconnexion
+            settings = if (!connected) emptyMap() else it.settings,
+            capabilities = if (!connected) emptyMap() else it.capabilities,
+            presetGroups = if (!connected) emptyList() else it.presetGroups,
+            currentPresetId = if (!connected) -1 else it.currentPresetId
         ) }
     }
 

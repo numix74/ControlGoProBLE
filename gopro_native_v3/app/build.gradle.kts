@@ -28,7 +28,7 @@ android {
     buildTypes {
         debug {
             isDebuggable = true
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = ".debug.gps"
             versionNameSuffix = "-DEBUG"
         }
         release {
