@@ -1,0 +1,113 @@
+brand: insta360
+model: X4
+model_id: 0x2C
+serial: IS4A1234567890
+firmware: 2.0.8
+board_type: "0x20"
+
+ble:
+  # UUID GATT principal extrait du SDK 1.9.11 APK (DEX reverse-engineering)
+  # 0x3377 a 26 references dans le bytecode = caracteristique principale
+  # Service associe: 0x3366 (2eme plus referencee, toujours paire avec 0x3377)
+  service_uuid: 00003366-0000-1000-8000-00805f9b34fb
+  # Format exact: "Insta360 X4 <code>" ex: "Insta360 X4 Air KK9LKI"
+  device_name: "Insta360 X4 IS4A12"
+  characteristics:
+    # 0x3377 = 26 refs bytecode = caracteristique principale (write + notify)
+    control:  00003377-0000-1000-8000-00805f9b34fb
+    notify:   00003377-0000-1000-8000-00805f9b34fb
+    # Aliases pour compatibilite handlers
+    wifi_ssid:     00003377-0000-1000-8000-00805f9b34fb
+    wifi_password: 00003377-0000-1000-8000-00805f9b34fb
+  company_id: 0x0B4B  # Arashi Vision Inc = 2891
+  # NOTE: Le BLE advertise un manufacturer data contenant BleScanProto (protobuf):
+  #   { wifiSsid: "X4.IS4A12.OSC", deviceType: <int>, wifiActiveTimeS: 300 }
+  # L'app lit le SSID WiFi depuis ce proto SANS se connecter en GATT.
+  # Le controle passe ensuite par HTTP OSC sur 192.168.42.1:80.
+  # UUIDs complets dans l'APK (usage secondaire GATT):
+  #   00001644, 00001784, 00002481, 00002726, 00002736, 00003366, 00003377, 00005147
+
+wifi:
+  ssid: "X4.IS4A1234567890.OSC"
+  password: "88888888"
+  camera_ip: 192.168.42.1
+  http_port: 80
+
+capture:
+  # X4 uses the NEW capture control flow (supportNewCaptureControlFlow() == true)
+  new_capture_flow: true
+  modes:
+    - id: 0
+      name: "NORMAL_VIDEO"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 1
+      name: "TIMELAPSE"
+      is_video: false
+      is_photo: false
+      is_live: false
+    - id: 2
+      name: "NORMAL_IMAGE"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 3
+      name: "HDR_IMAGE"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 4
+      name: "INTERVAL_SHOOTING"
+      is_video: false
+      is_photo: false
+      is_live: false
+    - id: 5
+      name: "BURST"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 6
+      name: "STAR_TRAIL"
+      is_video: false
+      is_photo: false
+      is_live: false
+    - id: 7
+      name: "TIMESHIFT"
+      is_video: true
+      is_photo: false
+      is_live: false
+
+initial_state:
+  battery_level: 90
+  battery_bars: 4
+  sd_remaining_kb: 120000000
+  sd_capacity_kb: 256000000
+  sd_status: 0
+  recording: false
+  overheating: false
+  system_ready: true
+  active_preset: 0
+  busy: false
+  photos_remaining: 9999
+  photos_total: 0
+  videos_count: 0
+  video_remaining_sec: 28800
+  is_charging: false
+
+settings:
+  # Mode : 0=video, 1=photo, 2=burst
+  1:
+    default: 0
+    capabilities: [0, 1, 2]
+  # Resolution video : 0=8K, 1=5.7K, 2=4K
+  2:
+    default: 1
+    capabilities: [0, 1, 2]
+  # FPS : 0=30, 1=60, 2=24
+  3:
+    default: 0
+    capabilities: [0, 1, 2]
+
+presets:
+  groups: []

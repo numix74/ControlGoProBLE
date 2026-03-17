@@ -1,0 +1,143 @@
+brand: insta360
+model: X5
+model_id: 0x2D  # spéculatif — X4=0x2C, X5=0x2D estimé. TODO jour J: confirmer via [INFO] cameraType=
+serial: IS5A1234567890
+firmware: v1.0.14
+board_type: "0x22"  # spéculatif
+
+ble:
+  # Mêmes UUIDs que X3/X4 — SDK 1.9.11 utilise le même service GATT pour toute la gamme
+  service_uuid: 00003366-0000-1000-8000-00805f9b34fb
+  # Format: "Insta360 X5 <last6_serial>" — même pattern que X3/X4
+  device_name: "Insta360 X5 IS5A12"
+  characteristics:
+    control:       00003377-0000-1000-8000-00805f9b34fb
+    notify:        00003377-0000-1000-8000-00805f9b34fb
+    wifi_ssid:     00003377-0000-1000-8000-00805f9b34fb
+    wifi_password: 00003377-0000-1000-8000-00805f9b34fb
+  company_id: 0x0B4B  # Arashi Vision Inc
+
+wifi:
+  # Format: <Model>.<Serial>.OSC — pattern commun toute la gamme
+  ssid: "X5.IS5A1234567890.OSC"
+  password: "88888888"
+  camera_ip: 192.168.42.1
+  http_port: 80
+
+capture:
+  # X5 = nouveau flow (comme X4) — supportNewCaptureControlFlow() == true
+  new_capture_flow: true
+  modes:
+    # Noms SDK depuis Insta360SettingsMappings.kt (référence sdkdemo2).
+    # TODO jour J : confirmer noms et IDs exacts depuis compare_report.txt
+    # Les IDs (0,1,2...) sont spéculatifs — seuls les noms string comptent pour airbuble.
+    - id: 0
+      name: "RECORD_NORMAL"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 1
+      name: "CAPTURE_NORMAL"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 2
+      name: "TIMELAPSE"
+      is_video: false
+      is_photo: false
+      is_live: false
+    - id: 3
+      name: "HDR_RECORD"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 4
+      name: "HDR_CAPTURE"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 5
+      name: "BULLETTIME"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 6
+      name: "TIME_SHIFT"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 7
+      name: "SLOW_MOTION"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 8
+      name: "BURST"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 9
+      name: "INTERVAL_SHOOTING"
+      is_video: false
+      is_photo: false
+      is_live: false
+    - id: 10
+      name: "LOOPER_RECORDING"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 11
+      name: "STARLAPSE_SHOOTING"
+      is_video: false
+      is_photo: false
+      is_live: false
+    # Modes potentiellement X5-exclusifs (à confirmer jour J)
+    - id: 12
+      name: "SUPER_RECORD"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 13
+      name: "PURE_RECORD"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 14
+      name: "NIGHT_SCENE"
+      is_video: false
+      is_photo: true
+      is_live: false
+
+initial_state:
+  battery_level: 95
+  battery_bars: 4
+  sd_remaining_kb: 220000000   # ~210 GB free
+  sd_capacity_kb: 256000000    # ~244 GB total
+  sd_status: 0
+  recording: false
+  overheating: false
+  system_ready: true
+  active_preset: 0
+  busy: false
+  photos_remaining: 9999
+  photos_total: 0
+  videos_count: 0
+  video_remaining_sec: 36000   # 10h (X5 plus grosse batterie que X4)
+  is_charging: false
+
+settings:
+  # Mode : 0=video, 1=photo, 2=burst
+  1:
+    default: 0
+    capabilities: [0, 1, 2]
+  # Resolution video : 0=8K, 1=5.7K, 2=4K, 3=2.7K
+  2:
+    default: 0
+    capabilities: [0, 1, 2, 3]
+  # FPS : 0=30, 1=60, 2=24, 3=120
+  3:
+    default: 0
+    capabilities: [0, 1, 2, 3]
+
+presets:
+  groups: []

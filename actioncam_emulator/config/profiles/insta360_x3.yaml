@@ -1,0 +1,128 @@
+brand: insta360
+model: X3
+model_id: 0x26
+serial: IS3A1234567890
+firmware: v1.0.81.0
+board_type: "0x1C"
+
+ble:
+  # Same UUIDs as X4 — SDK 1.9.11 uses the same GATT service for both
+  service_uuid: 00003366-0000-1000-8000-00805f9b34fb
+  # Format: "Insta360 X3 <last6_serial>" — cf ConnectViewModel comment "X3 1G9JJM"
+  device_name: "Insta360 X3 IS3A12"
+  characteristics:
+    control:       00003377-0000-1000-8000-00805f9b34fb
+    notify:        00003377-0000-1000-8000-00805f9b34fb
+    wifi_ssid:     00003377-0000-1000-8000-00805f9b34fb
+    wifi_password: 00003377-0000-1000-8000-00805f9b34fb
+  company_id: 0x0B4B  # Arashi Vision Inc
+
+wifi:
+  # Format: <Model>.<Serial>.OSC — cf X4 pattern
+  ssid: "X3.IS3A1234567890.OSC"
+  password: "88888888"
+  camera_ip: 192.168.42.1
+  http_port: 80
+
+capture:
+  # X3 uses the OLD capture control flow (supportNewCaptureControlFlow() == false)
+  # X4/X5 use new_capture_flow = true
+  new_capture_flow: false
+  modes:
+    # Noms SDK depuis Insta360SettingsMappings.kt (référence sdkdemo2).
+    # TODO jour J : confirmer noms et IDs exacts depuis compare_report.txt
+    # Les IDs entiers (0,1,2...) sont speculatifs — seuls les noms string comptent pour airbuble.
+    - id: 0
+      name: "RECORD_NORMAL"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 1
+      name: "CAPTURE_NORMAL"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 2
+      name: "TIMELAPSE"
+      is_video: false
+      is_photo: false
+      is_live: false
+    - id: 3
+      name: "HDR_RECORD"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 4
+      name: "HDR_CAPTURE"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 5
+      name: "BULLETTIME"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 6
+      name: "TIME_SHIFT"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 7
+      name: "SLOW_MOTION"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 8
+      name: "BURST"
+      is_video: false
+      is_photo: true
+      is_live: false
+    - id: 9
+      name: "INTERVAL_SHOOTING"
+      is_video: false
+      is_photo: false
+      is_live: false
+    - id: 10
+      name: "LOOPER_RECORDING"
+      is_video: true
+      is_photo: false
+      is_live: false
+    - id: 11
+      name: "STARLAPSE_SHOOTING"
+      is_video: false
+      is_photo: false
+      is_live: false
+
+initial_state:
+  battery_level: 85
+  battery_bars: 4
+  sd_remaining_kb: 60000000    # ~57 GB free
+  sd_capacity_kb: 128000000    # ~122 GB total
+  sd_status: 0
+  recording: false
+  overheating: false
+  system_ready: true
+  active_preset: 0
+  busy: false
+  photos_remaining: 9999
+  photos_total: 0
+  videos_count: 0
+  video_remaining_sec: 14400   # 4h (X3 battery less than X4)
+  is_charging: false
+
+settings:
+  # Mode : 0=video, 1=photo, 2=burst
+  1:
+    default: 0
+    capabilities: [0, 1, 2]
+  # Resolution video : 0=5.7K, 1=4K, 2=2.7K, 3=1080p
+  2:
+    default: 1
+    capabilities: [0, 1, 2, 3]
+  # FPS : 0=30, 1=60, 2=24
+  3:
+    default: 0
+    capabilities: [0, 1, 2]
+
+presets:
+  groups: []
