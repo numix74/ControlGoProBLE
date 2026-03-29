@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+private val diag get() = AirbubleApp.diagnostic
+
 class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallback, ICaptureStatusListener {
 
     companion object {
@@ -127,6 +129,7 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
             return
         }
         Log.i(TAG, "Connecting BLE to ${device.name}")
+        diag.log("BLE", "Connexion BLE → ${device.name} (${device.id})")
         sdk.stopBleScan()
         _connectionState.value = ConnectionState.BLE_CONNECTING
         sdk.connectBle(bleDevice)
@@ -134,6 +137,7 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
 
     override fun disconnect() {
         Log.i(TAG, "Disconnecting camera")
+        diag.log("CONN", "Déconnexion manuelle")
         sdk.closeCamera()
         Insta360NetworkManager.unbind()
         currentCaptureModeSDK = null
@@ -155,6 +159,7 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
         val connected = Insta360NetworkManager.connectToCamera(wifiSsid, wifiPassword)
         if (!connected) {
             Log.e(TAG, "WiFi connection to camera failed")
+            diag.error("WIFI", "Connexion WiFi échouée (SSID=$wifiSsid)")
             _connectionState.value = ConnectionState.ERROR
             return
         }
@@ -230,6 +235,7 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
                     wifiSsid = info?.ssid ?: ""
                     wifiPassword = info?.pwd ?: ""
                     Log.i(TAG, "BLE connected. WiFi SSID=$wifiSsid")
+                    diag.log("BLE", "BLE connecté — SSID=$wifiSsid")
                     _connectionState.value = ConnectionState.BLE_CONNECTED
                 } else {
                     _connectionState.value = ConnectionState.DISCONNECTED
@@ -242,6 +248,7 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
                     firmwareVersion  = safeGet { sdk.cameraVersion }
                     cameraDeviceType = safeGet { sdk.cameraType }.ifEmpty { "Insta360" }
                     cameraDeviceSerial = safeGet { sdk.cameraSerial }
+                    diag.log("CONN", "Connecté — $cameraDeviceType fw=$firmwareVersion serial=$cameraDeviceSerial")
                     Insta360DebugLogger.dumpCameraInfo(sdk)
                     _connectionState.value = ConnectionState.CONNECTED
                     Insta360NetworkManager.bindToMobileNetwork()
@@ -258,6 +265,7 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
 
     override fun onCameraConnectError(errorCode: Int) {
         Log.e(TAG, "Connection error: $errorCode")
+        diag.error("CONN", "Erreur connexion caméra (code=$errorCode)")
         _connectionState.value = ConnectionState.ERROR
         Insta360NetworkManager.unbind()
     }
@@ -333,6 +341,7 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
             sdk.setCaptureMode(targetMode)
             currentCaptureModeSDK = targetMode
             Log.i(TAG, "Mode switched to $modeId")
+            diag.log("MODE", "Changement mode → $modeId")
         } catch (e: Exception) {
             Log.w(TAG, "switchCaptureMode: $e")
         }
@@ -492,15 +501,18 @@ class Insta360ConnectionManager : CameraConnectionManager, ICameraChangedCallbac
     override fun onCaptureStarting() { Log.d(TAG, "onCaptureStarting") }
     override fun onCaptureWorking() {
         Log.i(TAG, "onCaptureWorking — recording started")
+        diag.log("REC", "Enregistrement démarré")
         _isRecording.value = true
     }
     override fun onCaptureStopping() { Log.d(TAG, "onCaptureStopping") }
     override fun onCaptureFinish(paths: Array<String>?) {
         Log.i(TAG, "onCaptureFinish")
+        diag.log("REC", "Enregistrement terminé — fichiers=${paths?.joinToString() ?: "?"}")
         _isRecording.value = false
     }
     override fun onCaptureError(errorCode: Int) {
         Log.e(TAG, "onCaptureError: $errorCode")
+        diag.error("REC", "Erreur capture (code=$errorCode)")
         _isRecording.value = false
     }
     override fun onCaptureTimeChanged(captureTime: Long) {}

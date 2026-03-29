@@ -10,6 +10,7 @@ import com.actioncam.airbuble.camera.ConnectionState
 import com.actioncam.airbuble.camera.ScannedDevice
 import com.actioncam.airbuble.camera.StorageInfo
 import com.actioncam.airbuble.gps.GpsTracker
+import com.actioncam.airbuble.insta360.AirbubleApp
 import com.actioncam.airbuble.insta360.Insta360ConnectionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -335,6 +336,11 @@ class AirbubleViewModel(application: Application) : AndroidViewModel(application
     fun syncTime() {
         connectionManager.syncTime()
     }
+
+    fun getDiagnosticLineCount(): Int = AirbubleApp.diagnostic.getLineCount()
+
+    fun buildDiagnosticShareIntent(context: Context): android.content.Intent? =
+        AirbubleApp.diagnostic.buildShareIntent(context)
 
     // ------------------------------------------------------------------ //
     //  Debug emulator shortcut                                             //

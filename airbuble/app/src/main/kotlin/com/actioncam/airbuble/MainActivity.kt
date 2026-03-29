@@ -23,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import com.actioncam.airbuble.ui.theme.DarkAppColors
 import com.actioncam.airbuble.ui.theme.LightAppColors
 import com.actioncam.airbuble.ui.theme.LocalAppColors
@@ -127,21 +128,30 @@ class MainActivity : ComponentActivity() {
                             }
                         ) { innerPadding ->
                             when (uiState.selectedTab) {
-                                1 -> SettingsScreen(
-                                    modifier = Modifier.padding(innerPadding),
-                                    availableModes = uiState.availableModes,
-                                    availableSettings = uiState.availableSettings,
-                                    currentModeId = uiState.captureModeId,
-                                    isDarkMode = uiState.isDarkMode,
-                                    isBubbleEnabled = uiState.isBubbleEnabled,
-                                    isCameraReady = uiState.isCameraReady,
-                                    onSwitchMode = { viewModel.switchMode(it) },
-                                    onChangeSetting = { s, v -> viewModel.changeSetting(s, v) },
-                                    onRefresh = { viewModel.loadModesAndSettings() },
-                                    onToggleDarkMode = { viewModel.toggleDarkMode() },
-                                    onToggleBubble = { viewModel.toggleBubble() },
-                                    onSyncTime = { viewModel.syncTime() }
-                                )
+                                1 -> {
+                                    val ctx = LocalContext.current
+                                    SettingsScreen(
+                                        modifier = Modifier.padding(innerPadding),
+                                        availableModes = uiState.availableModes,
+                                        availableSettings = uiState.availableSettings,
+                                        currentModeId = uiState.captureModeId,
+                                        isDarkMode = uiState.isDarkMode,
+                                        isBubbleEnabled = uiState.isBubbleEnabled,
+                                        isCameraReady = uiState.isCameraReady,
+                                        diagnosticLineCount = viewModel.getDiagnosticLineCount(),
+                                        onSwitchMode = { viewModel.switchMode(it) },
+                                        onChangeSetting = { s, v -> viewModel.changeSetting(s, v) },
+                                        onRefresh = { viewModel.loadModesAndSettings() },
+                                        onToggleDarkMode = { viewModel.toggleDarkMode() },
+                                        onToggleBubble = { viewModel.toggleBubble() },
+                                        onSyncTime = { viewModel.syncTime() },
+                                        onExportLogs = {
+                                            viewModel.buildDiagnosticShareIntent(ctx)?.let { intent ->
+                                                ctx.startActivity(Intent.createChooser(intent, "Partager les logs"))
+                                            }
+                                        }
+                                    )
+                                }
                                 2 -> StatusScreen(
                                     modifier = Modifier.padding(innerPadding),
                                     cameraModel = uiState.cameraModel,

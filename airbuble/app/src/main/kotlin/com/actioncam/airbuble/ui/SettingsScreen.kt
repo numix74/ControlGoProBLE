@@ -35,12 +35,14 @@ fun SettingsScreen(
     isDarkMode: Boolean = true,
     isBubbleEnabled: Boolean = true,
     isCameraReady: Boolean = false,
+    diagnosticLineCount: Int = 0,
     onSwitchMode: (String) -> Unit,
     onChangeSetting: (String, String) -> Unit,
     onRefresh: () -> Unit,
     onToggleDarkMode: () -> Unit = {},
     onToggleBubble: () -> Unit = {},
-    onSyncTime: () -> Unit = {}
+    onSyncTime: () -> Unit = {},
+    onExportLogs: () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -86,6 +88,14 @@ fun SettingsScreen(
             SectionLabel("CAMÉRA")
             Spacer(Modifier.height(10.dp))
             SyncTimeRow(onSyncTime = onSyncTime)
+        }
+
+        // Section Diagnostic (visible seulement si des logs existent — debug only)
+        if (diagnosticLineCount > 0) {
+            Spacer(Modifier.height(24.dp))
+            SectionLabel("DIAGNOSTIC")
+            Spacer(Modifier.height(10.dp))
+            ExportLogsRow(lineCount = diagnosticLineCount, onExport = onExportLogs)
         }
 
         if (availableModes.isEmpty() && availableSettings.isEmpty()) {
@@ -218,6 +228,29 @@ private fun SyncTimeRow(onSyncTime: () -> Unit) {
                 }) {
                     Text("Synchroniser", color = LocalAppColors.current.accent, fontSize = 12.sp)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExportLogsRow(lineCount: Int, onExport: () -> Unit) {
+    Surface(color = LocalAppColors.current.card, shape = RoundedCornerShape(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.BugReport, null, tint = LocalAppColors.current.accent, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("Exporter les logs", color = LocalAppColors.current.textPrimary, fontSize = 14.sp)
+                    Text("$lineCount lignes capturées", color = LocalAppColors.current.textDim, fontSize = 11.sp)
+                }
+            }
+            TextButton(onClick = onExport) {
+                Text("Partager", color = LocalAppColors.current.accent, fontSize = 12.sp)
             }
         }
     }

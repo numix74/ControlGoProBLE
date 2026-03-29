@@ -5,6 +5,8 @@ import com.arashivision.sdkcamera.camera.InstaCameraManager
 import com.arashivision.sdkcamera.camera.model.CaptureMode as SdkCaptureMode
 import com.arashivision.sdkcamera.camera.model.TemperatureLevel
 
+private val diag get() = AirbubleApp.diagnostic
+
 /**
  * Dump complet des données SDK vers logcat pour calibrage de l'émulateur.
  *
@@ -29,9 +31,11 @@ object Insta360DebugLogger {
 
     /** Dump infos caméra (firmware, type, n° série) — appeler depuis onCameraStatusChanged CONNECTED. */
     fun dumpCameraInfo(sdk: InstaCameraManager) {
-        Log.i(TAG, "[INFO] cameraType=${safeGet { sdk.cameraType }} " +
+        val msg = "[INFO] cameraType=${safeGet { sdk.cameraType }} " +
                 "firmware=${safeGet { sdk.cameraVersion }} " +
-                "serial=${safeGet { sdk.cameraSerial }}")
+                "serial=${safeGet { sdk.cameraSerial }}"
+        Log.i(TAG, msg)
+        diag.log("CAM", msg)
     }
 
     /** Dump liste des modes + settings par mode — appeler depuis initCameraSupportConfig.onComplete(). */
@@ -42,9 +46,12 @@ object Insta360DebugLogger {
             emptyList()
         }
         Log.i(TAG, "[CONFIG] modeCount=${modes.size}")
+        diag.log("CAM", "[CONFIG] modeCount=${modes.size}")
         for (mode in modes) {
-            Log.i(TAG, "[MODE] name=${mode.name} isVideo=${mode.isVideoMode} " +
-                    "isPhoto=${mode.isPhotoMode} isLive=${mode.isLiveMode}")
+            val modeMsg = "[MODE] name=${mode.name} isVideo=${mode.isVideoMode} " +
+                    "isPhoto=${mode.isPhotoMode} isLive=${mode.isLiveMode}"
+            Log.i(TAG, modeMsg)
+            diag.log("CAM", modeMsg)
             dumpSettingsForMode(sdk, mode)
         }
     }
@@ -71,23 +78,31 @@ object Insta360DebugLogger {
             } catch (_: Exception) {
                 emptyList<Any>()
             }
-            Log.i(TAG, "[SETTING] mode=${mode.name} key=${cs.name} count=${values.size} values=$values")
+            val settingMsg = "[SETTING] mode=${mode.name} key=${cs.name} count=${values.size} values=$values"
+            Log.i(TAG, settingMsg)
+            diag.log("CAM", settingMsg)
         }
     }
 
     /** Appeler depuis onCameraBatteryUpdate. */
     fun dumpBattery(level: Int, isCharging: Boolean) {
-        Log.i(TAG, "[BATTERY] level=$level charging=$isCharging")
+        val msg = "[BATTERY] level=$level charging=$isCharging"
+        Log.i(TAG, msg)
+        diag.log("CAM", msg)
     }
 
     /** Appeler depuis onCameraStorageChanged. */
     fun dumpStorage(freeSpace: Long, totalSpace: Long) {
-        Log.i(TAG, "[STORAGE] free=$freeSpace total=$totalSpace")
+        val msg = "[STORAGE] free=$freeSpace total=$totalSpace"
+        Log.i(TAG, msg)
+        diag.log("CAM", msg)
     }
 
     /** Appeler depuis onCameraTemperatureChanged. */
     fun dumpTemperature(tempLevel: TemperatureLevel?) {
-        Log.i(TAG, "[TEMP] level=${tempLevel?.name ?: "null"}")
+        val msg = "[TEMP] level=${tempLevel?.name ?: "null"}"
+        Log.i(TAG, msg)
+        diag.log("CAM", msg)
     }
 
     private inline fun safeGet(block: () -> String?): String =
