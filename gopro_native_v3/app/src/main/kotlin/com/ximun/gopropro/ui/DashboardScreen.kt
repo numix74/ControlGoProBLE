@@ -51,6 +51,7 @@ fun DashboardLayout(
     onLoadPreset: (Int) -> Unit,
     onToggleDarkMode: () -> Unit = {},
     onToggleBubble: () -> Unit = {},
+    onToggleAutoSync: () -> Unit = {},
     onLanguageChange: (String) -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -61,7 +62,7 @@ fun DashboardLayout(
     fun TabContent() {
         when (state.selectedTab) {
             0 -> DashboardScreen(state, isLandscape, onRecordToggle, onHilight, onDisconnect, onSleep, onToggleTimerMode, onAdjustTimer, onSnapTimer)
-            1 -> SettingsScreen(state, isLandscape, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble, onLanguageChange)
+            1 -> SettingsScreen(state, isLandscape, onUpdateSetting, onSyncTime, onReboot, onToggleDarkMode, onToggleBubble, onToggleAutoSync, onLanguageChange)
             2 -> PresetsScreen(state, isLandscape, onLoadPreset)
             3 -> StatusScreen(state, isLandscape)
         }

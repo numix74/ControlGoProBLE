@@ -73,6 +73,7 @@
     <string name="settings_dark_mode_label">Mode Clar</string>
     <string name="settings_light_mode_label">Mode Fosc</string>
     <string name="settings_bubble_label">Bombolla Flotant</string>
+    <string name="settings_auto_sync_label">Sync rellotge auto</string>
     <string name="settings_sync_clock_label">Sincronitzar Rellotge</string>
     <string name="settings_sync_clock_action">Sincronitzar</string>
     <string name="settings_sync_clock_done">✓ Sincronitzat</string>

@@ -73,6 +73,7 @@
     <string name="settings_dark_mode_label">Heller Modus</string>
     <string name="settings_light_mode_label">Dunkler Modus</string>
     <string name="settings_bubble_label">Schwebende Blase</string>
+    <string name="settings_auto_sync_label">Auto Uhrzeitsync</string>
     <string name="settings_sync_clock_label">Uhr synchronisieren</string>
     <string name="settings_sync_clock_action">Synchronisieren</string>
     <string name="settings_sync_clock_done">✓ Synchronisiert</string>

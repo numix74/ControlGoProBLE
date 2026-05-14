@@ -73,6 +73,7 @@
     <string name="settings_dark_mode_label">Modo Claro</string>
     <string name="settings_light_mode_label">Modo Oscuro</string>
     <string name="settings_bubble_label">Burbuja Flotante</string>
+    <string name="settings_auto_sync_label">Sincronización auto</string>
     <string name="settings_sync_clock_label">Sincronizar Hora</string>
     <string name="settings_sync_clock_action">Sincronizar</string>
     <string name="settings_sync_clock_done">✓ Sincronizado</string>

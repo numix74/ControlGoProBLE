@@ -385,6 +385,7 @@ class GoProConnectionManager(
         val hour = now.get(Calendar.HOUR_OF_DAY).toByte()
         val min = now.get(Calendar.MINUTE).toByte()
         val sec = now.get(Calendar.SECOND).toByte()
+        Log.d(TAG, "Sync horloge → $year-$month-$day $hour:$min:$sec")
 
         val payload = byteArrayOf(
             GoProConstants.CMD_SET_DATE.toByte(),
@@ -592,6 +593,9 @@ class GoProConnectionManager(
                 // Données initiales chargées → l'écran de contrôle peut s'afficher
                 withContext(Dispatchers.Main) { viewModel.setCameraReady(true) }
                 Log.d(TAG, "Camera ready: basculement vers dashboard")
+                if (viewModel.uiState.value.isAutoSyncEnabled) {
+                    syncDateTime()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error subscribing", e)
             }

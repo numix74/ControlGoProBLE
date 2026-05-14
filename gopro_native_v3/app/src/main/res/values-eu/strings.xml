@@ -73,6 +73,7 @@
     <string name="settings_dark_mode_label">Modu Argia</string>
     <string name="settings_light_mode_label">Modu Iluna</string>
     <string name="settings_bubble_label">Burbuila Flotatzailea</string>
+    <string name="settings_auto_sync_label">Ordu sync automatikoa</string>
     <string name="settings_sync_clock_label">Ordua Sinkronizatu</string>
     <string name="settings_sync_clock_action">Sinkronizatu</string>
     <string name="settings_sync_clock_done">✓ Sinkronizatuta</string>

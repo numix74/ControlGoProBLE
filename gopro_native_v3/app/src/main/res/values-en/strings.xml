@@ -73,6 +73,7 @@
     <string name="settings_dark_mode_label">Light Mode</string>
     <string name="settings_light_mode_label">Dark Mode</string>
     <string name="settings_bubble_label">Floating Bubble</string>
+    <string name="settings_auto_sync_label">Auto Clock Sync</string>
     <string name="settings_sync_clock_label">Sync Clock</string>
     <string name="settings_sync_clock_action">Synchronize</string>
     <string name="settings_sync_clock_done">✓ Synchronized</string>

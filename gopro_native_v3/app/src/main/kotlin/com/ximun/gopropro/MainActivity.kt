@@ -119,6 +119,12 @@ class MainActivity : ComponentActivity() {
                         },
                         onToggleDarkMode = { viewModel.toggleDarkMode() },
                         onToggleBubble = { viewModel.toggleBubble() },
+                        onToggleAutoSync = {
+                            viewModel.toggleAutoSync()
+                            if (viewModel.uiState.value.isAutoSyncEnabled && viewModel.uiState.value.isCameraReady) {
+                                connectionManager.syncDateTime()
+                            }
+                        },
                         onLanguageChange = { tag ->
                             LocaleUtils.setLocale(this, tag)
                             recreate()

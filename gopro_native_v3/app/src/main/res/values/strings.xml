@@ -85,6 +85,7 @@
     <string name="settings_dark_mode_label">Mode Clair</string>
     <string name="settings_light_mode_label">Mode Sombre</string>
     <string name="settings_bubble_label">Bulle Flottante</string>
+    <string name="settings_auto_sync_label">Sync horloge auto</string>
     <string name="settings_sync_clock_label">Sync Horloge</string>
     <string name="settings_sync_clock_action">Synchroniser</string>
     <string name="settings_sync_clock_done">✓ Synchronisé</string>

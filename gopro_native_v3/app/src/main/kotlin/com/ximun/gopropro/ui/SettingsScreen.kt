@@ -54,6 +54,7 @@ fun SettingsScreen(
     onReboot: () -> Unit = {},
     onToggleDarkMode: () -> Unit = {},
     onToggleBubble: () -> Unit = {},
+    onToggleAutoSync: () -> Unit = {},
     onLanguageChange: (String) -> Unit = {}
 ) {
     val settings = state.settings
@@ -134,19 +135,12 @@ fun SettingsScreen(
         // Toggle Bulle Flottante (app)
         BubbleToggle(isBubbleEnabled = state.isBubbleEnabled, onToggle = onToggleBubble)
 
+        // Toggle Sync horloge automatique (app)
+        AutoSyncToggle(isAutoSyncEnabled = state.isAutoSyncEnabled, onToggle = onToggleAutoSync)
+
         // Sélecteur de langue (app)
         LanguagePicker(currentLocale = currentLocale, onLanguageChange = onLanguageChange)
 
-        // Bouton Sync Horloge (toujours visible)
-        ActionSettingRow(
-            label = stringResource(R.string.settings_sync_clock_label),
-            icon = Icons.Default.Sync,
-            actionLabel = stringResource(R.string.settings_sync_clock_action),
-            feedbackLabel = stringResource(R.string.settings_sync_clock_done),
-            feedbackColor = Color(0xFF4CAF50),
-            feedbackDurationMs = 2000,
-            onClick = onSyncTime
-        )
 
         // Bouton Redémarrer (conditionnel — masqué si non supporté par la caméra)
         // CMD_REBOOT (0x11) n'est pas supporté sur tous les modèles (ex: HERO11 Mini)
@@ -351,6 +345,42 @@ private fun BubbleToggle(isBubbleEnabled: Boolean, onToggle: () -> Unit) {
                 )
                 Switch(
                     checked = isBubbleEnabled,
+                    onCheckedChange = { onToggle() }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Toggle Sync horloge automatique à la connexion.
+ */
+@Composable
+private fun AutoSyncToggle(isAutoSyncEnabled: Boolean, onToggle: () -> Unit) {
+    val appColors = LocalAppColors.current
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle() },
+            color = appColors.card,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, appColors.border)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_auto_sync_label),
+                    fontWeight = FontWeight.Bold,
+                    color = appColors.textPrimary
+                )
+                Switch(
+                    checked = isAutoSyncEnabled,
                     onCheckedChange = { onToggle() }
                 )
             }

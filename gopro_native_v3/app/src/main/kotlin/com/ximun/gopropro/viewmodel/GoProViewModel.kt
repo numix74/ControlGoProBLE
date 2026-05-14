@@ -65,6 +65,7 @@ data class CameraUiState(
     // Préférences app
     val isDarkMode: Boolean = true,
     val isBubbleEnabled: Boolean = true,
+    val isAutoSyncEnabled: Boolean = true,
 
     // Vrai quand settings + capabilities + presets + status sont tous chargés
     val isCameraReady: Boolean = false
@@ -77,12 +78,14 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
         private const val PREFS_NAME = "gopro_prefs"
         private const val KEY_TIMER_VALUE = "timer_value"
         private const val KEY_DARK_MODE = "dark_mode"
+        private const val KEY_AUTO_SYNC = "auto_sync"
         private const val DEFAULT_TIMER = 15
     }
 
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val savedTimer = prefs.getInt(KEY_TIMER_VALUE, DEFAULT_TIMER).coerceIn(5, 300)
     private val savedDarkMode = prefs.getBoolean(KEY_DARK_MODE, true)
+    private val savedAutoSync = prefs.getBoolean(KEY_AUTO_SYNC, true)
 
     init {
         Log.d("GoProViewModel", "🔧 Init: darkMode from prefs=$savedDarkMode (KEY=$KEY_DARK_MODE)")
@@ -91,7 +94,8 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(CameraUiState(
         initialTimerValue = savedTimer,
         currentTimerValue = savedTimer,
-        isDarkMode = savedDarkMode
+        isDarkMode = savedDarkMode,
+        isAutoSyncEnabled = savedAutoSync
     ))
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
@@ -121,6 +125,14 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleBubble() {
         _uiState.update { it.copy(isBubbleEnabled = !it.isBubbleEnabled) }
+    }
+
+    fun toggleAutoSync() {
+        _uiState.update {
+            val newVal = !it.isAutoSyncEnabled
+            prefs.edit().putBoolean(KEY_AUTO_SYNC, newVal).apply()
+            it.copy(isAutoSyncEnabled = newVal)
+        }
     }
 
     fun updateConnection(connected: Boolean) {
