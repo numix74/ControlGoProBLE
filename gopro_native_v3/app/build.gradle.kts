@@ -12,11 +12,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.ximun.gopropro.v2"
+        applicationId = "com.ximun.gopropro.v4"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 4
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled = true
