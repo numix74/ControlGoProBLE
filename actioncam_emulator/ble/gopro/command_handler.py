@@ -14,6 +14,8 @@ class CommandHandler:
 
     # Command IDs
     CMD_SET_SHUTTER = 0x01
+    CMD_SET_MODE_GROUP = 0x02   # Legacy : switch Video/Photo/Multi-shot
+    CMD_SET_SUB_MODE = 0x03     # Legacy : switch sub-mode dans un group
     CMD_SLEEP = 0x05
     CMD_SET_DATE = 0x0D
     CMD_REBOOT = 0x11
@@ -43,6 +45,20 @@ class CommandHandler:
 
         elif cmd_id == self.CMD_SET_SHUTTER:
             return await self._handle_shutter(payload)
+
+        elif cmd_id == self.CMD_SET_MODE_GROUP:
+            # Legacy : [0x02, 1, group] où group = 0(Video), 1(Photo), 2(Multi-shot)
+            group = payload[2] if len(payload) >= 3 else 0
+            group_name = {0: "Video", 1: "Photo", 2: "Multi-shot"}.get(group, f"?({group})")
+            self.state.log_command(f"Set Mode Group → {group_name}")
+            return build_command_response(cmd_id, 0x00)
+
+        elif cmd_id == self.CMD_SET_SUB_MODE:
+            # Legacy : [0x03, 1, group, 1, sub] (deux TLV chunks)
+            group = payload[2] if len(payload) >= 5 else 0
+            sub = payload[4] if len(payload) >= 5 else 0
+            self.state.log_command(f"Set Sub-Mode → group={group}, sub={sub}")
+            return build_command_response(cmd_id, 0x00)
 
         elif cmd_id == self.CMD_KEEP_ALIVE:
             self.state.log_command("Keep Alive")

@@ -1,0 +1,164 @@
+brand: gopro
+model: HERO7 Black
+model_id: 31  # 0x1F
+schema_version: 2
+serial: C3071234567890
+firmware: "HD7.01.02.01.00"
+board_type: "0x01"
+
+# Profil "legacy" : émule une GoPro Hero 5/6/7/8 (protocole BLE pré-OpenGoPro).
+# Mêmes UUIDs GATT que les modèles récents, mais l'app n'envoie ni Claim
+# Control (0xF1), ni register-updates protobuf (0x52/0x53/0x62), ni
+# fetch-presets (0xF5). Elle s'appuie sur :
+#   - CMD_GET_HARDWARE_INFO (0x3C) pour détecter "HERO7" → LEGACY
+#   - CMD_SET_SHUTTER (0x01), HILIGHT (0x18), SLEEP (0x05), KEEP_ALIVE (0x5B),
+#     SET_DATE (0x0D), SET_MODE_GROUP (0x02), SET_SUB_MODE (0x03)
+#   - QRY_GET_STATUS (0x13) one-shot pour batterie/storage/recording
+
+ble:
+  service_uuid: "0000fea6-0000-1000-8000-00805f9b34fb"
+  device_name: "GoPro7 Black"
+  ap_ssid: "GP07567890"
+  ap_password: "z9-Xk3@p"
+  company_id: 0xF202
+  characteristics:
+    command:      "b5f90072-aa8d-11e3-9046-0002a5d5c51b"
+    command_rsp:  "b5f90073-aa8d-11e3-9046-0002a5d5c51b"
+    settings:     "b5f90074-aa8d-11e3-9046-0002a5d5c51b"
+    settings_rsp: "b5f90075-aa8d-11e3-9046-0002a5d5c51b"
+    query:        "b5f90076-aa8d-11e3-9046-0002a5d5c51b"
+    query_rsp:    "b5f90077-aa8d-11e3-9046-0002a5d5c51b"
+
+initial_state:
+  battery_level: 75
+  battery_bars: 3
+  sd_remaining_kb: 40000000
+  sd_capacity_kb: 64000000
+  sd_status: 0
+  recording: false
+  overheating: false
+  system_ready: true
+  active_preset: 1     # ID synthétique du preset "Vidéo" côté app legacy
+  busy: false
+  photos_remaining: 4500
+  photos_total: 12
+  videos_count: 7
+  video_remaining_sec: 21600
+  is_charging: false
+
+# Settings legacy (IDs partagés avec OpenGoPro pour les communs, valeurs
+# spécifiques au protocole legacy). Référence : KonradIT/goprowifihack.
+settings:
+  # Video Resolution — 1=4K, 4=2.7K, 6=2.7K 4:3, 7=1440, 9=1080, 10=960, 12=720, 18=4K 4:3
+  2:
+    default: 9
+    capabilities: [1, 18, 4, 6, 7, 9, 10, 12]
+  # FPS — 0=240, 1=120, 2=100, 3=90, 4=80, 5=60, 6=50, 7=48, 8=30, 9=25
+  3:
+    default: 5
+    capabilities: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  # FOV — 0=Wide, 3=SuperView, 4=Linear (Hero 7)
+  4:
+    default: 0
+    capabilities: [0, 3, 4]
+  # Video Timelapse Interval
+  5:
+    default: 1
+    capabilities: [0, 1, 2, 3, 4, 5, 6]
+  # Photo Resolution (12MP Wide/Medium/Narrow/Linear)
+  17:
+    default: 0
+    capabilities: [0, 8, 9, 10]
+  # Burst Rate
+  29:
+    default: 0
+    capabilities: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  # Multishot Timelapse Interval (valeur en secondes)
+  30:
+    default: 1
+    capabilities: [0, 1, 2, 5, 10, 30, 60]
+  # NightLapse Interval (0=Auto)
+  31:
+    default: 0
+    capabilities: [0, 1, 2, 3, 4, 5, 6]
+  # Auto Sleep (legacy : 0=Never, 1=1min, 4=5min, 6=15min, 7=30min)
+  59:
+    default: 4
+    capabilities: [0, 1, 4, 6, 7]
+  # HyperSmooth (Hero 7+) — 0=Off, 1=On
+  78:
+    default: 1
+    capabilities: [0, 1]
+  # GPS
+  83:
+    default: 1
+    capabilities: [0, 1]
+  # LCD Brightness
+  88:
+    default: 70
+    capabilities: [0, 10, 30, 50, 70, 100]
+  # LED — 0=Off, 1=Front only, 2=All
+  91:
+    default: 2
+    capabilities: [0, 1, 2]
+  # TimeWarp Speed (Hero 7+) — 7=2X, 8=5X, 9=10X, 0=15X, 1=30X
+  111:
+    default: 7
+    capabilities: [7, 8, 9, 0, 1]
+  # Orientation — 0=Auto, 5=Landscape, 255=Locked
+  112:
+    default: 0
+    capabilities: [0, 5, 255]
+
+# Pseudo-presets legacy : IDs synthétiques calculés par l'app comme
+# modeGroup*10 + subMode + 1. L'émulateur les liste pour cohérence
+# mais l'app legacy ne les utilise PAS pour Load Preset (elle envoie
+# directement 0x02 Set Mode Group + 0x03 Set Sub-Mode).
+presets:
+  groups:
+    - id: 1000  # Video
+      presets:
+        - id: 1   # modeGroup=0, sub=0 — Vidéo
+          title: "Vidéo"
+          icon: 0
+          settings: {2: 9, 3: 5, 4: 0, 78: 1}
+        - id: 4   # modeGroup=0, sub=3 — Looping
+          title: "Vidéo en boucle"
+          icon: 33
+          settings: {2: 9, 3: 5, 4: 0}
+        - id: 5   # modeGroup=0, sub=4 — TimeWarp (Hero 7+)
+          title: "TimeWarp"
+          icon: 7
+          settings: {2: 9, 3: 5, 111: 7}
+    - id: 1001  # Photo
+      presets:
+        - id: 11  # modeGroup=1, sub=0 — Photo simple
+          title: "Photo"
+          icon: 3
+          settings: {17: 0}
+        - id: 12  # modeGroup=1, sub=1 — Photo continue
+          title: "Photo continue"
+          icon: 5
+          settings: {17: 0}
+        - id: 13  # modeGroup=1, sub=2 — Photo de nuit
+          title: "Photo de nuit"
+          icon: 6
+          settings: {17: 0}
+    - id: 1002  # Timelapse
+      presets:
+        - id: 21  # modeGroup=2, sub=0 — Rafale
+          title: "Rafale"
+          icon: 5
+          settings: {29: 0}
+        - id: 22  # modeGroup=2, sub=1 — Time Lapse
+          title: "Time Lapse"
+          icon: 8
+          settings: {30: 1}
+        - id: 23  # modeGroup=2, sub=2 — Night Lapse
+          title: "Night Lapse"
+          icon: 9
+          settings: {31: 0}
+        - id: 2   # modeGroup=0, sub=1 — Vidéo Time Lapse
+          title: "Vidéo Time Lapse"
+          icon: 8
+          settings: {5: 1}
