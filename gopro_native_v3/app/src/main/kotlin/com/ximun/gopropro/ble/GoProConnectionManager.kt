@@ -234,7 +234,12 @@ class GoProConnectionManager(
             bleScanner?.stopScan(this)
             // Sauvegarder l'adresse MAC pour reconnexion directe
             prefs.edit().putString(KEY_LAST_MAC, result.device.address).apply()
-            Log.d(TAG, "MAC sauvegardée: ${result.device.address}")
+            // Pré-détection de la génération via le nom BLE annoncé.
+            // Sera reconfirmée après CMD_GET_HARDWARE_INFO.
+            val advertisedName = result.scanRecord?.deviceName ?: result.device.name
+            val gen = CameraGenerationDetector.detect(advertisedName)
+            Log.d(TAG, "MAC sauvegardée: ${result.device.address} | name=$advertisedName | gen=$gen")
+            viewModel.setCameraGeneration(gen)
             bleManager.connect(result.device).retry(3, 100).useAutoConnect(false).enqueue()
         }
     }
@@ -464,6 +469,13 @@ class GoProConnectionManager(
      * Démarre ensuite le heartbeat APD qui ré-envoie 59=0 toutes les 5s.
      */
     private fun disableAutoOff() {
+        // Mode héritage : setting 59 n'existe pas tel quel sur Hero 5/6/7/8
+        // (auto-off géré par d'autres setting IDs spécifiques au firmware).
+        // On laisse la caméra suivre son timer firmware natif.
+        if (viewModel.uiState.value.cameraGeneration.isLegacy) {
+            Log.d(TAG, "disableAutoOff: skip (mode héritage)")
+            return
+        }
         val currentValue = viewModel.uiState.value.settings[GoProConstants.SETTING_ID_AUTO_POWER_DOWN]
         // Sauvegarder la préférence utilisateur (priorité : mémoire > prefs > valeur caméra)
         if (savedAutoOffValue == null) {
@@ -566,35 +578,47 @@ class GoProConnectionManager(
             }
         }
         if (isReady) {
-            Log.d(TAG, "Camera ready, starting subscriptions...")
+            val generation = withContext(Dispatchers.Main) { viewModel.uiState.value.cameraGeneration }
+            Log.d(TAG, "Camera ready, gen=$generation, starting subscriptions...")
             try {
-                subscribeToUpdates()
-                // Attendre que les données critiques soient effectivement dans le ViewModel
-                // (les réponses BLE multi-paquets peuvent arriver après les delay())
-                val readyTimeout = 10_000L
-                val startWait = System.currentTimeMillis()
-                while (System.currentTimeMillis() - startWait < readyTimeout) {
-                    val state = withContext(Dispatchers.Main) { viewModel.uiState.value }
-                    val hasSettings = state.settings.isNotEmpty()
-                    val hasCapabilities = state.capabilities.isNotEmpty()
-                    val hasPresets = state.presetGroups.isNotEmpty()
-                    if (hasSettings && hasCapabilities && hasPresets) {
-                        Log.d(TAG, "Données complètes: ${state.settings.size} settings, ${state.capabilities.size} capabilities, ${state.presetGroups.size} preset groups")
-                        break
+                if (generation.isLegacy) {
+                    subscribeLegacy()
+                    // En legacy : pas de settings/capabilities/presets à attendre.
+                    // L'auto-off n'est pas géré (pas de heartbeat APD) : la caméra
+                    // suit son timer firmware natif. Le keep-alive maintient la connexion.
+                    withContext(Dispatchers.Main) { viewModel.setCameraReady(true) }
+                    Log.d(TAG, "Legacy ready: basculement vers dashboard (mode héritage)")
+                    if (viewModel.uiState.value.isAutoSyncEnabled) {
+                        syncDateTime()
                     }
-                    Log.d(TAG, "Attente données: settings=$hasSettings caps=$hasCapabilities presets=$hasPresets (${System.currentTimeMillis() - startWait}ms)")
-                    delay(200)
-                }
-                // Settings chargés → désactiver l'extinction auto si l'app est au premier plan.
-                val settingsCount = viewModel.uiState.value.settings.size
-                val hasSetting59 = viewModel.uiState.value.settings.containsKey(GoProConstants.SETTING_ID_AUTO_POWER_DOWN)
-                Log.d(TAG, "Post-subscribe: isAppForeground=$isAppForeground, settings=$settingsCount, hasSetting59=$hasSetting59")
-                if (isAppForeground) disableAutoOff()
-                // Données initiales chargées → l'écran de contrôle peut s'afficher
-                withContext(Dispatchers.Main) { viewModel.setCameraReady(true) }
-                Log.d(TAG, "Camera ready: basculement vers dashboard")
-                if (viewModel.uiState.value.isAutoSyncEnabled) {
-                    syncDateTime()
+                } else {
+                    subscribeToUpdates()
+                    // Attendre que les données critiques soient effectivement dans le ViewModel
+                    // (les réponses BLE multi-paquets peuvent arriver après les delay())
+                    val readyTimeout = 10_000L
+                    val startWait = System.currentTimeMillis()
+                    while (System.currentTimeMillis() - startWait < readyTimeout) {
+                        val state = withContext(Dispatchers.Main) { viewModel.uiState.value }
+                        val hasSettings = state.settings.isNotEmpty()
+                        val hasCapabilities = state.capabilities.isNotEmpty()
+                        val hasPresets = state.presetGroups.isNotEmpty()
+                        if (hasSettings && hasCapabilities && hasPresets) {
+                            Log.d(TAG, "Données complètes: ${state.settings.size} settings, ${state.capabilities.size} capabilities, ${state.presetGroups.size} preset groups")
+                            break
+                        }
+                        Log.d(TAG, "Attente données: settings=$hasSettings caps=$hasCapabilities presets=$hasPresets (${System.currentTimeMillis() - startWait}ms)")
+                        delay(200)
+                    }
+                    // Settings chargés → désactiver l'extinction auto si l'app est au premier plan.
+                    val settingsCount = viewModel.uiState.value.settings.size
+                    val hasSetting59 = viewModel.uiState.value.settings.containsKey(GoProConstants.SETTING_ID_AUTO_POWER_DOWN)
+                    Log.d(TAG, "Post-subscribe: isAppForeground=$isAppForeground, settings=$settingsCount, hasSetting59=$hasSetting59")
+                    if (isAppForeground) disableAutoOff()
+                    withContext(Dispatchers.Main) { viewModel.setCameraReady(true) }
+                    Log.d(TAG, "Camera ready: basculement vers dashboard")
+                    if (viewModel.uiState.value.isAutoSyncEnabled) {
+                        syncDateTime()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error subscribing", e)
@@ -602,6 +626,34 @@ class GoProConnectionManager(
         } else {
             Log.e(TAG, "Camera not ready after 10 attempts")
         }
+    }
+
+    /**
+     * Mode héritage (Hero 5/6/7/8) : pas de subscriptions async ni de protobuf.
+     * On envoie un Get Status one-shot pour récupérer batterie + storage + recording,
+     * puis on s'appuie sur les notifications déclenchées par les changements d'état
+     * (la caméra envoie déjà des updates sur les status standards, juste sans le
+     * mécanisme Register Updates de l'OpenGoPro v2).
+     *
+     * Réf : https://github.com/KonradIT/goprowifihack/blob/master/Bluetooth/bluetooth-api.md
+     */
+    private suspend fun subscribeLegacy() {
+        Log.d(TAG, "Legacy: Get Status (0x13) one-shot...")
+        val statusIds = byteArrayOf(
+            GoProConstants.STATUS_ID_RECORDING.toByte(),
+            GoProConstants.STATUS_ID_BATTERY.toByte(),
+            GoProConstants.STATUS_ID_BATTERY_BARS.toByte(),
+            GoProConstants.STATUS_ID_STORAGE.toByte(),
+            GoProConstants.STATUS_ID_VIDEO_REMAINING.toByte(),
+            GoProConstants.STATUS_ID_OVERHEATING.toByte()
+        )
+        // 0x13 = Get Status (avec liste d'IDs) — supporté depuis Hero 5
+        bleManager.sendGoProCommand(
+            GoProConstants.QUERY_CHAR_UUID,
+            byteArrayOf(GoProConstants.QRY_GET_STATUS_VALUES.toByte()) + statusIds
+        )
+        delay(500)
+        Log.d(TAG, "Legacy subscribe: TERMINÉ")
     }
 
     private suspend fun subscribeToUpdates() {
@@ -666,10 +718,14 @@ class GoProConnectionManager(
             val modelName = info[2] as? String ?: "HERO Device"
             val serial = info[5] as? String ?: ""
             val version = info[4] as? String ?: ""
+            // Détection de génération basée sur le modèle réel renvoyé par la caméra.
+            // Plus fiable que le nom BLE annoncé.
+            val gen = CameraGenerationDetector.detect(modelName)
             withContext(Dispatchers.Main) {
                 viewModel.updateHardwareInfo(serial, version, modelName)
+                viewModel.setCameraGeneration(gen)
             }
-            Log.d(TAG, "Hardware Info: Model=$modelName, Serial=$serial, Ver=$version")
+            Log.d(TAG, "Hardware Info: Model=$modelName, Serial=$serial, Ver=$version, Gen=$gen")
         }
     }
 

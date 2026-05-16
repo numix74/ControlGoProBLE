@@ -43,7 +43,9 @@ fun PresetsScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (state.presetGroups.isEmpty()) {
+        if (state.cameraGeneration.isLegacy) {
+            LegacyUnavailableNotice(message = stringResource(R.string.legacy_presets_unavailable))
+        } else if (state.presetGroups.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = appColors.accent)
             }

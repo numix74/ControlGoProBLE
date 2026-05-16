@@ -15,6 +15,9 @@
     <!-- ═══════════════════════════════════════════════════════ -->
     <string name="dashboard_title">STUDIO PRO</string>
     <string name="dashboard_subtitle">LIAISON DIRECTE</string>
+    <string name="dashboard_legacy_badge">MODE HÉRITAGE</string>
+    <string name="legacy_settings_unavailable">Réglages non disponibles en mode héritage.\nLes commandes de base (REC, HiLight, sleep) restent fonctionnelles.</string>
+    <string name="legacy_presets_unavailable">Presets non disponibles en mode héritage.</string>
     <string name="dashboard_btn_sleep">Veille</string>
     <string name="dashboard_btn_disconnect">Déconnexion</string>
     <string name="dashboard_stat_battery">BATTERIE</string>

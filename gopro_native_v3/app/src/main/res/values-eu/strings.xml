@@ -9,6 +9,9 @@
     <!-- AGINTE-MAHAIA -->
     <string name="dashboard_title">STUDIO PRO</string>
     <string name="dashboard_subtitle">ZUZENEKO KONEXIOA</string>
+    <string name="dashboard_legacy_badge">ONDARE MODUA</string>
+    <string name="legacy_settings_unavailable">Ezarpenak ez daude erabilgarri ondare moduan.\nOinarrizko aginduak (REC, HiLight, lo) funtzionatzen jarraitzen dute.</string>
+    <string name="legacy_presets_unavailable">Presets ez daude erabilgarri ondare moduan.</string>
     <string name="dashboard_btn_sleep">Logerazpena</string>
     <string name="dashboard_btn_disconnect">Deskonektatu</string>
     <string name="dashboard_stat_battery">BATERIA</string>

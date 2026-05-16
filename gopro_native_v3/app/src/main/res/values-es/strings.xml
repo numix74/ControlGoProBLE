@@ -9,6 +9,9 @@
     <!-- DASHBOARD -->
     <string name="dashboard_title">STUDIO PRO</string>
     <string name="dashboard_subtitle">ENLACE DIRECTO</string>
+    <string name="dashboard_legacy_badge">MODO HEREDADO</string>
+    <string name="legacy_settings_unavailable">Ajustes no disponibles en modo heredado.\nLos comandos básicos (REC, HiLight, espera) siguen funcionando.</string>
+    <string name="legacy_presets_unavailable">Presets no disponibles en modo heredado.</string>
     <string name="dashboard_btn_sleep">Espera</string>
     <string name="dashboard_btn_disconnect">Desconectar</string>
     <string name="dashboard_stat_battery">BATERÍA</string>

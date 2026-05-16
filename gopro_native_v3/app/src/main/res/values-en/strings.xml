@@ -9,6 +9,9 @@
     <!-- DASHBOARD -->
     <string name="dashboard_title">STUDIO PRO</string>
     <string name="dashboard_subtitle">DIRECT LINK</string>
+    <string name="dashboard_legacy_badge">LEGACY MODE</string>
+    <string name="legacy_settings_unavailable">Settings not available in legacy mode.\nBasic commands (REC, HiLight, sleep) remain functional.</string>
+    <string name="legacy_presets_unavailable">Presets not available in legacy mode.</string>
     <string name="dashboard_btn_sleep">Sleep</string>
     <string name="dashboard_btn_disconnect">Disconnect</string>
     <string name="dashboard_stat_battery">BATTERY</string>

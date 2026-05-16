@@ -9,6 +9,9 @@
     <!-- TAULER DE CONTROL -->
     <string name="dashboard_title">STUDIO PRO</string>
     <string name="dashboard_subtitle">CONNEXIÓ DIRECTA</string>
+    <string name="dashboard_legacy_badge">MODE HERETAT</string>
+    <string name="legacy_settings_unavailable">Configuració no disponible en mode heretat.\nLes ordres bàsiques (REC, HiLight, espera) continuen funcionant.</string>
+    <string name="legacy_presets_unavailable">Presets no disponibles en mode heretat.</string>
     <string name="dashboard_btn_sleep">Espera</string>
     <string name="dashboard_btn_disconnect">Desconnectar</string>
     <string name="dashboard_stat_battery">BATERIA</string>

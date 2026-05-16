@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.ximun.gopropro.ble.CameraGeneration
 import com.ximun.gopropro.proto.GoProProtos
 
 data class CameraUiState(
@@ -58,6 +59,7 @@ data class CameraUiState(
     val firmwareVersion: String = "",
     val serialNumber: String = "",
     val cameraName: String = "",
+    val cameraGeneration: CameraGeneration = CameraGeneration.UNKNOWN,
 
     // GPS & waypoints
     val waypointCount: Int = 0,
@@ -144,7 +146,8 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
             settings = if (!connected) emptyMap() else it.settings,
             capabilities = if (!connected) emptyMap() else it.capabilities,
             presetGroups = if (!connected) emptyList() else it.presetGroups,
-            currentPresetId = if (!connected) -1 else it.currentPresetId
+            currentPresetId = if (!connected) -1 else it.currentPresetId,
+            cameraGeneration = if (!connected) CameraGeneration.UNKNOWN else it.cameraGeneration
         ) }
     }
 
@@ -345,6 +348,18 @@ class GoProViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateHardwareInfo(serial: String, version: String, name: String) {
         _uiState.update { it.copy(serialNumber = serial, firmwareVersion = version, cameraName = name) }
+    }
+
+    /**
+     * Met à jour la génération de la caméra. N'écrase une valeur déjà connue
+     * que si la nouvelle est plus précise (UNKNOWN < LEGACY/OPEN_GOPRO).
+     */
+    fun setCameraGeneration(generation: CameraGeneration) {
+        _uiState.update { state ->
+            if (state.cameraGeneration != CameraGeneration.UNKNOWN
+                && generation == CameraGeneration.UNKNOWN) state
+            else state.copy(cameraGeneration = generation)
+        }
     }
 
     fun updateSdRemaining(kb: Long) {

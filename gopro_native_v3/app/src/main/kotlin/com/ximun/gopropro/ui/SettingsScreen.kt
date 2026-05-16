@@ -94,39 +94,46 @@ fun SettingsScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Section: Paramètres du mode actif
-        SectionHeader(
-            icon = if (modeSettingIds.isTimelapse) Icons.Default.Timelapse else Icons.Default.Videocam,
-            title = presetName
-        )
-        Spacer(modifier = Modifier.height(12.dp))
+        if (state.cameraGeneration.isLegacy) {
+            // Mode héritage : pas de réglages caméra (protocole legacy non implémenté).
+            // On garde la section toggles app ci-dessous (dark mode, bulle, sync, langue).
+            LegacyUnavailableNotice(message = stringResource(R.string.legacy_settings_unavailable))
+            Spacer(modifier = Modifier.height(24.dp))
+        } else {
+            // Section: Paramètres du mode actif
+            SectionHeader(
+                icon = if (modeSettingIds.isTimelapse) Icons.Default.Timelapse else Icons.Default.Videocam,
+                title = presetName
+            )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        modeSettingIds.settingIds.forEach { settingId ->
-            RenderSetting(settingId, capabilities, settings, onUpdateSetting)
-        }
+            modeSettingIds.settingIds.forEach { settingId ->
+                RenderSetting(settingId, capabilities, settings, onUpdateSetting)
+            }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        // Section: Paramètres système (seulement ceux disponibles sur le modèle)
-        val systemSettingCandidates = listOf(
-            GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
-            GoProConstants.SETTING_ID_LED,
-            GoProConstants.SETTING_ID_BEEP_VOLUME,
-            GoProConstants.SETTING_ID_LCD_BRIGHTNESS,
-            GoProConstants.SETTING_ID_SCREEN_SAVER,
-            GoProConstants.SETTING_ID_GPS,
-            GoProConstants.SETTING_ID_ANTI_FLICKER,
-            GoProConstants.SETTING_ID_WIRELESS_BAND,
-            GoProConstants.SETTING_ID_LANGUAGE
-        )
-        val availableSystemSettings = systemSettingCandidates.filter { settings.containsKey(it) }
+            // Section: Paramètres système (seulement ceux disponibles sur le modèle)
+            val systemSettingCandidates = listOf(
+                GoProConstants.SETTING_ID_AUTO_POWER_DOWN,
+                GoProConstants.SETTING_ID_LED,
+                GoProConstants.SETTING_ID_BEEP_VOLUME,
+                GoProConstants.SETTING_ID_LCD_BRIGHTNESS,
+                GoProConstants.SETTING_ID_SCREEN_SAVER,
+                GoProConstants.SETTING_ID_GPS,
+                GoProConstants.SETTING_ID_ANTI_FLICKER,
+                GoProConstants.SETTING_ID_WIRELESS_BAND,
+                GoProConstants.SETTING_ID_LANGUAGE
+            )
+            val availableSystemSettings = systemSettingCandidates.filter { settings.containsKey(it) }
 
-        SectionHeader(icon = Icons.Default.Settings, title = stringResource(R.string.settings_section_system))
-        Spacer(modifier = Modifier.height(12.dp))
+            SectionHeader(icon = Icons.Default.Settings, title = stringResource(R.string.settings_section_system))
+            Spacer(modifier = Modifier.height(12.dp))
 
-        // Settings système de la caméra
-        availableSystemSettings.forEach { settingId ->
-            RenderSetting(settingId, capabilities, settings, onUpdateSetting)
+            // Settings système de la caméra
+            availableSystemSettings.forEach { settingId ->
+                RenderSetting(settingId, capabilities, settings, onUpdateSetting)
+            }
         }
 
         // Toggle Mode Sombre/Clair (app)

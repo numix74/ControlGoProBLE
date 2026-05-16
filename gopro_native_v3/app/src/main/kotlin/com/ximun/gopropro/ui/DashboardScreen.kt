@@ -165,7 +165,10 @@ fun DashboardScreen(
                 title = stringResource(R.string.dashboard_title),
                 subtitle = stringResource(R.string.dashboard_subtitle),
                 actions = {
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (state.cameraGeneration.isLegacy) {
+                            LegacyBadge(modifier = Modifier.padding(end = 8.dp))
+                        }
                         IconButton(onClick = onDisconnect) {
                             Icon(Icons.Default.LinkOff, stringResource(R.string.dashboard_btn_disconnect), tint = LocalAppColors.current.textSecondary)
                         }
